@@ -1,0 +1,8 @@
+ipConfig:
+  etcdService: im/ipConfig/
+  endPoints:
+    - http://localhost:2379
+    - http://localhost:2380
+    - http://localhost:2381
+  dailTimeOut: 5
+  leaseDDL: 5
