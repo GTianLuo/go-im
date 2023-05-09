@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"go-im/client/sdk"
+	"go-im/common/tcp"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -63,9 +64,10 @@ func viewPrint(g *gocui.Gui, name, msg string, newline bool) {
 func doRecv(g *gocui.Gui) {
 	recvChannel := chat.Recv()
 	for msg := range recvChannel {
-		switch msg.Type {
-		case sdk.MsgTypeText:
-			viewPrint(g, msg.Name, msg.Content, false)
+		switch msg.Header.MessageType {
+		case tcp.PrivateChatMessage:
+			b := msg.Body.(*tcp.PrivateChat)
+			viewPrint(g, b.From, b.Content, false)
 		}
 	}
 	g.Close()
@@ -84,15 +86,9 @@ func doSay(g *gocui.Gui, cv *gocui.View) {
 	if cv != nil && err == nil {
 		p := cv.ReadEditor()
 		if p != nil {
-			msg := &sdk.Message{
-				Type:       sdk.MsgTypeText,
-				Name:       "logic",
-				FormUserID: "123213",
-				ToUserID:   "222222",
-				Content:    string(p)}
 			// 先把自己说的话显示到消息流中
-			viewPrint(g, "me", msg.Content, false)
-			chat.Send(msg)
+			viewPrint(g, "me", string(p), false)
+			chat.SendText("2112", string(p))
 		}
 		v.Autoscroll = true
 	}
@@ -223,7 +219,7 @@ func pasteDown(g *gocui.Gui, cv *gocui.View) error {
 
 func RunMain() {
 	// step1 创建caht的核心对象
-	chat = sdk.NewChat("127.0.0.1:8080", "logic", "12312321", "2131")
+	chat = sdk.NewChat("localhost:4021", "logic", "12312321", "2131")
 	// step2 创建 GUI 图层对象并进行参与与回调函数的配置
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {

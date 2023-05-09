@@ -109,6 +109,7 @@ func (m *Manager) storeConn(conn *connection) {
 }
 
 func (m *Manager) remove(id int) {
+	log.Infof("remove a connection %d", id)
 	m.table.Delete(id)
 }
 
@@ -122,7 +123,7 @@ func (m *Manager) load(id int) (*connection, error) {
 func getSocketFd(conn *net.TCPConn) int {
 	connV := reflect.ValueOf(*conn)
 	fdV := reflect.Indirect(connV.FieldByName("fd"))
-	return fdV.FieldByName("pfd").FieldByName("Sysfd").Interface().(int)
+	return int(fdV.FieldByName("pfd").FieldByName("Sysfd").Int())
 }
 
 func (m *Manager) handleUpstreamMessage() {
@@ -135,7 +136,7 @@ func (m *Manager) handleDownstreamMessage() {
 	for cm := range m.send {
 		conn, err := m.load(cm.UserID)
 		if err != nil {
-			log.Errorf("user %d not exist on this gateway")
+			log.Errorf("user %d not exist on this gateway", cm.UserID)
 			continue
 		}
 		m.workPool.Submit(

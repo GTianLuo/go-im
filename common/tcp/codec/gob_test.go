@@ -39,8 +39,8 @@ func TestClient(t *testing.T) {
 	codec := NewGobCodec(conn)
 	h := &tcp.FixedHeader{Seq: 1, MessageType: tcp.PrivateChatMessage}
 	body := &tcp.PrivateChat{
-		From:    1,
-		To:      2,
+		From:    "122",
+		To:      "212",
 		Content: "hello world",
 	}
 	codec.Write(h, body)

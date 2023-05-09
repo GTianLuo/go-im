@@ -12,20 +12,19 @@ const (
 
 // FixedHeader 固定头部
 type FixedHeader struct {
-	To          int
 	Seq         int64       //序号 4个字节
 	MessageType MessageType //消息类型 1个字节
 }
 
 type PrivateChat struct {
-	From    int
-	To      int
+	From    string
+	To      string
 	Content string
 }
 
 type GroupChat struct {
-	From  int
-	Group int
+	From  string
+	Group string
 	//Content string
 }
 

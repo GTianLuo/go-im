@@ -1,7 +1,7 @@
 package sdk
 
-const (
-	MsgTypeText = "text"
+import (
+	"go-im/common/tcp"
 )
 
 type Chat struct {
@@ -12,12 +12,8 @@ type Chat struct {
 }
 
 type Message struct {
-	Type       string
-	Name       string
-	FormUserID string
-	ToUserID   string
-	Content    string
-	Session    string
+	Header *tcp.FixedHeader
+	Body   interface{}
 }
 
 func NewChat(serverAddr, nick, userID, sessionID string) *Chat {
@@ -27,9 +23,20 @@ func NewChat(serverAddr, nick, userID, sessionID string) *Chat {
 		SessionID: sessionID,
 		conn:      newConnet(serverAddr),
 	}
+
 }
-func (chat *Chat) Send(msg *Message) {
-	chat.conn.send(msg)
+
+func (c *Chat) SendText(to string, t string) {
+	h := &tcp.FixedHeader{
+		Seq:         1,
+		MessageType: tcp.PrivateChatMessage,
+	}
+	body := &tcp.PrivateChat{
+		From:    c.UserID,
+		To:      to,
+		Content: t,
+	}
+	c.conn.send(&Message{h, body})
 }
 
 //Close close chat
@@ -39,5 +46,5 @@ func (chat *Chat) Close() {
 
 //Recv receive message
 func (chat *Chat) Recv() <-chan *Message {
-	return chat.conn.recv()
+	return chat.conn.getRecvChan()
 }

@@ -9,5 +9,5 @@ type MessageEvent struct {
 }
 
 func NewMessageEvent(userId int, h *tcp.FixedHeader, body interface{}) *MessageEvent {
-	return &MessageEvent{Header: h, Body: body}
+	return &MessageEvent{UserID: userId, Header: h, Body: body}
 }
