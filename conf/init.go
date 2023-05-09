@@ -3,15 +3,13 @@ package conf
 import (
 	"github.com/bytedance/gopkg/util/logger"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var v *viper.Viper
 
-func Init() {
+func Init(configPath string) {
 	v = viper.New()
-	path, _ := os.Getwd()
-	v.AddConfigPath(path + "/conf/")
+	v.AddConfigPath(configPath)
 	//v.AddConfigPath(path + "/../conf")
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")

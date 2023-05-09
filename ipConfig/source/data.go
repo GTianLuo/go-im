@@ -13,9 +13,11 @@ func Init() {
 }
 
 func handleData(ctx context.Context) {
+
 	//创建服务发现对象
 	d := discovery.NewServiceDiscovery(ctx, conf.GetIpConfigEndPoints(), conf.GetIpConfigDailTimeOut())
 
+	defer d.Close()
 	//创建闭包函数，用户服务变更后处理
 	addFunc := func(key, value string) {
 		event := NewEvent(key, value)

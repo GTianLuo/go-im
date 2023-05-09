@@ -7,9 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-im/common/discovery"
 	"go-im/conf"
-	"go-im/ipConfig/domain"
+	"go-im/ipConfig/serviceManage"
 	"go-im/ipConfig/source"
 	"net/http"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -22,14 +23,15 @@ func TestData(t *testing.T) {
 
 func TestWatch(t *testing.T) {
 	//读取配置文件
-	conf.Init()
+	path, _ := os.Getwd()
+	conf.Init(path + "/conf")
 	//初始化服务发现
 	source.Init()
 	//初始化服务调度
-	domain.Init()
+	serviceManage.Init()
 	e := gin.Default()
 	e.GET("/ip/list", func(context *gin.Context) {
-		context.JSON(http.StatusOK, domain.DisPatch())
+		context.JSON(http.StatusOK, serviceManage.DisPatch())
 	})
 	e.Run(":4567")
 }
@@ -59,4 +61,14 @@ func TestServiceRegister(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 100000000)
+}
+
+func TestSelect(t *testing.T) {
+	ch := make(chan int)
+	select {
+	case <-ch:
+		fmt.Println("Read")
+	case ch <- 1:
+		fmt.Println("write")
+	}
 }
