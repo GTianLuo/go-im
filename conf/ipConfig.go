@@ -20,7 +20,3 @@ func GetIpConfigEtcdServer() string {
 func GetIpConfigDailTimeOut() time.Duration {
 	return time.Duration(v.Get("ipConfig.dailTimeOut").(int)) * time.Second
 }
-
-func GetIpConfigLeaseDDL() int64 {
-	return v.GetInt64("ipConfig.leaseDDL")
-}

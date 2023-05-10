@@ -7,7 +7,7 @@ import (
 )
 
 func Init() {
-	eventChan = make(chan *Event, len(conf.GetIpConfigEndPoints()))
+	eventChan = make(chan *Event, 5)
 	ctx := context.Background()
 	go handleData(ctx)
 }

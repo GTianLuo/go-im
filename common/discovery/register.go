@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/bytedance/gopkg/util/logger"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"log"
 	"time"
 )
 
@@ -12,11 +13,11 @@ type ServiceRegister struct {
 	cli           *clientv3.Client
 	lease         clientv3.LeaseID
 	key           string
-	value         string
+	value         *EndpointInfo
 	keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
 }
 
-func NewServerRegister(ctx context.Context, endPoints []string, dailTimeOut time.Duration, ttl int64, key string, value string) *ServiceRegister {
+func NewServerRegister(ctx context.Context, endPoints []string, dailTimeOut time.Duration, ttl int64, key string, value *EndpointInfo) *ServiceRegister {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   endPoints,
 		DialTimeout: dailTimeOut,
@@ -40,7 +41,11 @@ func (s *ServiceRegister) putKVWithLease(ttl int64) {
 		logger.Fatal("register service", err)
 	}
 	s.lease = resp.ID
-	_, err = s.cli.Put(s.ctx, s.key, s.value, clientv3.WithLease(s.lease))
+	valueStr, err := s.value.Marshal()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = s.cli.Put(s.ctx, s.key, valueStr, clientv3.WithLease(s.lease))
 	if err != nil {
 		logger.Fatal("register service", err)
 	}

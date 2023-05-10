@@ -21,5 +21,5 @@ func RunMain() {
 	e.GET("/ip/list", func(context *gin.Context) {
 		context.JSON(http.StatusOK, serviceManage.DisPatch())
 	})
-	e.Run(":")
+	e.Run(":9999")
 }

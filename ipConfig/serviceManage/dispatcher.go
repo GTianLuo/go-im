@@ -1,8 +1,8 @@
 package serviceManage
 
 import (
-	"github.com/bytedance/gopkg/util/logger"
 	"go-im/ipConfig/source"
+	"go-im/log"
 	"sync"
 )
 
@@ -43,7 +43,7 @@ func DisPatch() []Candidate {
 func (d *DisPatcher) getCandidates() []Candidate {
 	d.rwMu.RLock()
 	defer d.rwMu.RUnlock()
-	c := make([]Candidate, len(d.candidateTable))
+	c := make([]Candidate, 0, 1)
 	for _, v := range d.candidateTable {
 		c = append(c, *v)
 	}
@@ -54,12 +54,12 @@ func (d *DisPatcher) addCandidate(event *source.Event) {
 	d.rwMu.Lock()
 	defer d.rwMu.Unlock()
 	d.candidateTable[event.Key()] = NewCandidate(event)
-	logger.Info("add candidate ", event.Key())
+	log.Info("add candidate ", event.Key())
 }
 
 func (d *DisPatcher) delCandidate(event *source.Event) {
 	d.rwMu.Lock()
 	defer d.rwMu.Unlock()
 	delete(d.candidateTable, event.Key())
-	logger.Info("del candidate ", event.Key())
+	log.Info("del candidate ", event.Key())
 }

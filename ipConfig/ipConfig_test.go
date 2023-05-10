@@ -3,14 +3,12 @@ package ipConfig
 import (
 	"context"
 	"fmt"
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/gin-gonic/gin"
 	"go-im/common/discovery"
 	"go-im/conf"
 	"go-im/ipConfig/serviceManage"
 	"go-im/ipConfig/source"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -23,8 +21,7 @@ func TestData(t *testing.T) {
 
 func TestWatch(t *testing.T) {
 	//读取配置文件
-	path, _ := os.Getwd()
-	conf.Init(path + "/conf")
+	conf.Init("../conf")
 	//初始化服务发现
 	source.Init()
 	//初始化服务调度
@@ -39,23 +36,20 @@ func TestWatch(t *testing.T) {
 func TestServiceRegister(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
-		s, err := (&discovery.EndpointInfo{
+		s := &discovery.EndpointInfo{
 			IP:   "localhost",
 			Port: "9999" + strconv.Itoa(i),
 			Metadata: map[string]interface{}{
 				"connect_num":   99999,
 				"message_bytes": 993882,
 			},
-		}).Marshal()
-		if err != nil {
-			logger.Fatal(err)
 		}
 		_ = discovery.NewServerRegister(
 			context.Background(),
 			[]string{"http://localhost:2379"},
 			time.Second*5,
 			10,
-			fmt.Sprint("im/ipConfig/"+"node-1"+strconv.Itoa(i)),
+			fmt.Sprint("im/gatewayServer/"+"node-1"+strconv.Itoa(i)),
 			s,
 		)
 	}

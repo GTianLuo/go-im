@@ -1,5 +1,5 @@
 ipConfig:
-  etcdService: im/ipConfig/
+  etcdService: im/gatewayServer/
   endPoints:
     - http://localhost:2379
     - http://localhost:2380
@@ -8,8 +8,15 @@ ipConfig:
   leaseDDL: 5
 
 
+
 gateway:
   maxConnsNum: 1024
   workPoolNum: 1024
   deviceId: 1
   addr: localhost:4021
+  endPoints:
+    - http://localhost:2379
+    - http://localhost:2380
+    - http://localhost:2381
+  dailTimeOut: 5
+  leaseDDL: 5

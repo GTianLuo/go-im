@@ -1,9 +1,11 @@
 package gateway
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"go-im/common/discovery"
 	"go-im/common/tcp"
 	"go-im/conf"
 	"go-im/log"
@@ -19,24 +21,32 @@ type iManager interface {
 
 type Manager struct {
 	deviceId   int32 //设备编号
-	lis        *net.TCPListener
+	addr       string
 	table      sync.Map           //连接和id的映射
 	workPool   *ants.Pool         //协程池
 	hasConnNum int32              //现有连接数
 	recv       chan *MessageEvent //处理上游消息
 	send       chan *MessageEvent //处理下游消息
+	register   *discovery.ServiceRegister
 }
 
 var m *Manager
 
-func initManager(lis *net.TCPListener) error {
+func initManager() error {
 	m = &Manager{
 		deviceId: conf.GetGateWayDeviceId(),
-		lis:      lis,
+		addr:     conf.GetGateWayAddr(),
 		recv:     make(chan *MessageEvent, 10),
 		send:     make(chan *MessageEvent, 10),
 	}
-	var err error
+	tcpAddr, err := net.ResolveTCPAddr("tcp", m.addr)
+	if err != nil {
+		return err
+	}
+	lis, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		return err
+	}
 	if m.workPool, err = ants.NewPool(conf.GetGateWayWorkPoolNum()); err != nil {
 		return errors.New("failed init Manager: " + err.Error())
 	}
@@ -46,6 +56,8 @@ func initManager(lis *net.TCPListener) error {
 	//处理上游消息
 	go m.handleUpstreamMessage()
 	log.Info("======================= IM Gateway ===================== ")
+	//注册服务到etcd
+	m.registerService()
 	return nil
 }
 
@@ -148,4 +160,25 @@ func (m *Manager) handleDownstreamMessage() {
 				}
 			})
 	}
+}
+
+func (m *Manager) registerService() {
+	m.register = discovery.NewServerRegister(
+		context.Background(),
+		conf.GetGatewayEndPoints(),
+		conf.GetGatewayDailTimeOut(),
+		conf.GetGatewayLeaseDDL(),
+		fmt.Sprintf("im/gatewayServer/%d", m.deviceId),
+		discovery.Transform(m.addr, 0, 0))
+}
+
+func (m *Manager) Close() {
+	m.workPool.Release()
+	close(m.send)
+	close(m.recv)
+	m.table.Range(func(key, value any) bool {
+		conn := value.(*connection)
+		_ = conn.Close()
+		return true
+	})
 }

@@ -1,6 +1,9 @@
 package discovery
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 type EndpointInfo struct {
 	IP       string
@@ -18,4 +21,14 @@ func (ed *EndpointInfo) Marshal() (string, error) {
 
 func (ed *EndpointInfo) UnMarshal(data []byte) error {
 	return json.Unmarshal(data, ed)
+}
+
+func Transform(addr string, connNum float64, messageBytes float64) *EndpointInfo {
+	s := strings.Split(addr, ":")
+	metadate := map[string]interface{}{"connect_num": connNum, "message_bytes": messageBytes}
+	return &EndpointInfo{
+		IP:       s[0],
+		Port:     s[1],
+		Metadata: metadate,
+	}
 }
