@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"runtime"
 	"sync"
 	"sync/atomic"
 )
@@ -20,14 +21,16 @@ type iManager interface {
 }
 
 type Manager struct {
-	deviceId   int32 //设备编号
-	addr       string
-	table      sync.Map           //连接和id的映射
-	workPool   *ants.Pool         //协程池
-	hasConnNum int32              //现有连接数
-	recv       chan *MessageEvent //处理上游消息
-	send       chan *MessageEvent //处理下游消息
-	register   *discovery.ServiceRegister
+	deviceId   int32                      //设备编号
+	addr       string                     //服务地址
+	lis        *net.TCPListener           //tcp监听器
+	table      sync.Map                   //连接和id的映射
+	workPool   *ants.Pool                 //协程池
+	hasConnNum int32                      //现有连接数
+	connChan   chan *connection           //accept conn事件后，通知epoll
+	send       chan *MessageEvent         //处理下游消息
+	register   *discovery.ServiceRegister //服务注册
+	done       chan struct{}              //manager关闭时，done关闭
 }
 
 var m *Manager
@@ -36,7 +39,7 @@ func initManager() error {
 	m = &Manager{
 		deviceId: conf.GetGateWayDeviceId(),
 		addr:     conf.GetGateWayAddr(),
-		recv:     make(chan *MessageEvent, 10),
+		connChan: make(chan *connection, 3),
 		send:     make(chan *MessageEvent, 10),
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp", m.addr)
@@ -47,35 +50,106 @@ func initManager() error {
 	if err != nil {
 		return err
 	}
+	m.lis = lis
 	if m.workPool, err = ants.NewPool(conf.GetGateWayWorkPoolNum()); err != nil {
 		return errors.New("failed init Manager: " + err.Error())
 	}
-	go m.accept(lis)
+	m.accept()
+	m.initEpoll()
 	// 处理下游消息
 	go m.handleDownstreamMessage()
-	//处理上游消息
-	go m.handleUpstreamMessage()
 	log.Info("======================= IM Gateway ===================== ")
 	//注册服务到etcd
 	m.registerService()
 	return nil
 }
 
-func (m *Manager) accept(lis *net.TCPListener) {
-	for {
-		conn, err := lis.AcceptTCP()
-		if err != nil {
-			log.Error("failed accept: ", err)
-			return
+func (m *Manager) accept() {
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				conn, err := m.lis.AcceptTCP()
+				if err != nil {
+					log.Error("failed accept: ", err)
+					return
+				}
+				// 限流
+				if !m.CheckAndAddTcpNum() {
+					log.Error("conn num has reached max,confuse connection")
+					_ = conn.Close()
+					continue
+				}
+				m.connChan <- NewConnection(getSocketFd(conn), conn)
+			}
+		}()
+	}
+}
+
+func (m *Manager) initEpoll() {
+	for i := 0; i < conf.GetGateWayReactorNums(); i++ {
+		go m.StartEpoll()
+	}
+}
+
+func (m *Manager) StartEpoll() {
+	e, err := createEpoll()
+	if err != nil {
+		log.Info(err)
+	}
+	//开启协程监听accept事件，并将连接注册到epoll
+	go func() {
+		for {
+			select {
+			case <-m.done:
+				log.Infof("epoll %d closed", e.epollfd)
+				_ = e.close()
+				return
+			case conn := <-m.connChan:
+				log.Infof("epoll %d 添加连接 %d", e.epollfd, conn.fd)
+				err := e.addEpollTask(int32(conn.fd))
+				if err != nil {
+					log.Info(err)
+				}
+			}
 		}
-		// 限流
-		if !m.CheckAndAddTcpNum() {
-			log.Error("conn num has reached max,confuse connection")
-			_ = conn.Close()
+	}()
+	// 处理触发事件
+	for {
+		epollEvent, n, err := e.eventTigger()
+		if err != nil {
+			log.Info(err)
 			continue
 		}
-		go m.processConn(conn)
+		for i := 0; i < n; i++ {
+			connI, ok := m.table.Load(epollEvent[i].Fd)
+			if !ok {
+				continue
+			}
+			c := connI.(*connection)
+			m.workPool.Submit(func() {
+				h := &tcp.FixedHeader{}
+				if err := c.codec.ReadFixedHeader(h); err != nil {
+					// 连接关闭
+					if err != nil {
+						if err == io.EOF || err == io.ErrUnexpectedEOF {
+							m.remove(c.fd)
+							_ = e.delEpollTask(int32(e.epollfd))
+						}
+						// 读走坏数据
+						_ = c.codec.ReadBody(nil)
+						return
+					}
+				}
+				body := tcp.GetMessageBody(h.MessageType)
+				if err := c.codec.ReadBody(body); err != nil {
+					log.Error(err)
+					return
+				}
+				m.handleUpstreamMessage(NewMessageEvent(c.fd, h, body))
+			})
+		}
 	}
+
 }
 
 // CheckAndAddTcpNum 检查并添加连接数
@@ -86,33 +160,6 @@ func (m *Manager) CheckAndAddTcpNum() bool {
 	}
 	atomic.AddInt32(&m.hasConnNum, 1)
 	return true
-}
-
-func (m *Manager) processConn(conn *net.TCPConn) {
-	c := NewConnection(getSocketFd(conn), conn)
-	defer func() { _ = c.Close() }()
-	m.storeConn(c)
-	log.Infof("create a new connection %d", c.fd)
-	for {
-		h := &tcp.FixedHeader{}
-		if err := c.codec.ReadFixedHeader(h); err != nil {
-			// 连接关闭
-			if err != nil {
-				if err == io.EOF || err == io.ErrUnexpectedEOF {
-					m.remove(c.fd)
-				}
-				// 读走坏数据
-				_ = c.codec.ReadBody(nil)
-				return
-			}
-		}
-		body := tcp.GetMessageBody(h.MessageType)
-		if err := c.codec.ReadBody(body); err != nil {
-			log.Error(err)
-			continue
-		}
-		m.recv <- NewMessageEvent(c.fd, h, body)
-	}
 }
 
 func (m *Manager) storeConn(conn *connection) {
@@ -138,10 +185,8 @@ func getSocketFd(conn *net.TCPConn) int {
 	return int(fdV.FieldByName("pfd").FieldByName("Sysfd").Int())
 }
 
-func (m *Manager) handleUpstreamMessage() {
-	for cm := range m.recv {
-		m.send <- cm
-	}
+func (m *Manager) handleUpstreamMessage(event *MessageEvent) {
+	m.send <- event
 }
 
 func (m *Manager) handleDownstreamMessage() {
@@ -175,7 +220,7 @@ func (m *Manager) registerService() {
 func (m *Manager) Close() {
 	m.workPool.Release()
 	close(m.send)
-	close(m.recv)
+	close(m.connChan)
 	m.table.Range(func(key, value any) bool {
 		conn := value.(*connection)
 		_ = conn.Close()

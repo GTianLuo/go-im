@@ -34,3 +34,11 @@ func GetGatewayLeaseDDL() int64 {
 func GetGatewayDailTimeOut() time.Duration {
 	return time.Duration(v.Get("gateway.dailTimeOut").(int)) * time.Second
 }
+
+func GetGateWayEpollMaxTriggerConn() int {
+	return v.GetInt("gateway.epoll.maxTriggerEvent")
+}
+
+func GetGateWayReactorNums() int {
+	return v.GetInt("gateway.reactorNum")
+}

@@ -41,3 +41,7 @@ func TestSendAndRecv(t *testing.T) {
 	}
 	fmt.Println(body)
 }
+
+func TestNet(t *testing.T) {
+	net.Listen("tcp", "")
+}
