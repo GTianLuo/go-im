@@ -5,6 +5,8 @@ import (
 	"syscall"
 )
 
+const EPOLLET = 1 << 31
+
 type epoller struct {
 	epollfd int
 }
@@ -19,14 +21,14 @@ func createEpoll() (*epoller, error) {
 }
 
 func (e *epoller) addEpollTask(fd int32) error {
-	events := &syscall.EpollEvent{Events: syscall.EPOLLIN | syscall.EPOLLHUP, Fd: fd}
+	events := &syscall.EpollEvent{Events: EPOLLET | syscall.EPOLLIN | syscall.EPOLLHUP, Fd: fd}
 	err := syscall.EpollCtl(e.epollfd, syscall.EPOLL_CTL_ADD, int(fd), events)
 	return err
 }
 
 func (e *epoller) delEpollTask(fd int32) error {
-	events := &syscall.EpollEvent{Events: syscall.EPOLLIN | syscall.EPOLLHUP, Fd: fd}
-	err := syscall.EpollCtl(e.epollfd, syscall.EPOLL_CTL_DEL, int(fd), events)
+	err := syscall.EpollCtl(e.epollfd, syscall.EPOLL_CTL_DEL, int(fd), nil)
+
 	return err
 }
 

@@ -2,46 +2,32 @@ package gateway
 
 import (
 	"fmt"
-	"go-im/common/tcp"
-	"go-im/common/tcp/codec"
-	"log"
+	"github.com/panjf2000/ants/v2"
 	"net"
 	"testing"
 )
 
 // 测试最大连接数
 func TestConn(t *testing.T) {
-	for {
+	conns := make([]*net.TCPConn, 0)
+	for i := 0; i < 20000; i++ {
 		addr, _ := net.ResolveTCPAddr("tcp", "localhost:4021")
-		if _, err := net.DialTCP("tcp", nil, addr); err != nil {
+		conn, err := net.DialTCP("tcp", nil, addr)
+		if err != nil {
 			fmt.Println(err)
 			return
 		}
+		conns = append(conns, conn)
+
 	}
+	select {}
 }
 
-func TestSendAndRecv(t *testing.T) {
-	addr, _ := net.ResolveTCPAddr("tcp", "localhost:4021")
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	gobCodec := codec.NewGobCodec(conn)
-	if err = gobCodec.Write(&tcp.FixedHeader{Seq: 1, MessageType: tcp.PrivateChatMessage},
-		&tcp.PrivateChat{From: "122", To: "1212", Content: "hello world"}); err != nil {
-		log.Fatal(err)
-	}
-	h := &tcp.FixedHeader{}
-	if err = gobCodec.ReadFixedHeader(h); err != nil {
-		log.Fatal(h)
-	}
-	body := tcp.GetMessageBody(h.MessageType)
-	if err = gobCodec.ReadBody(body); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(body)
-}
+func TestWorkPool(t *testing.T) {
+	pool, _ := ants.NewPool(10)
+	for i := 0; i < 100; i++ {
+		pool.Submit(func() {
 
-func TestNet(t *testing.T) {
-	net.Listen("tcp", "")
+		})
+	}
 }

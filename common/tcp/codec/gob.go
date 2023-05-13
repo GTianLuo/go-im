@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"go-im/common/tcp"
 	"io"
+	"sync"
 )
 
 type GobCodec struct {
@@ -12,6 +13,7 @@ type GobCodec struct {
 	buf  *bufio.Writer //写缓冲
 	dec  *gob.Decoder
 	enc  *gob.Encoder
+	mu   sync.Mutex //防止同时写入
 }
 
 func NewGobCodec(conn io.ReadWriteCloser) Codec {
@@ -29,7 +31,6 @@ func (g *GobCodec) Close() error {
 }
 
 func (g *GobCodec) ReadFixedHeader(header *tcp.FixedHeader) error {
-
 	return g.dec.Decode(header)
 }
 
@@ -38,6 +39,8 @@ func (g *GobCodec) ReadBody(i interface{}) error {
 }
 
 func (g *GobCodec) Write(header *tcp.FixedHeader, i interface{}) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	defer func() { _ = g.buf.Flush() }()
 	if err := g.enc.Encode(header); err != nil {
 		return err

@@ -10,10 +10,10 @@ ipConfig:
 
 
 gateway:
-  maxConnsNum: 1024
+  maxConnsNum: 1000000
   workPoolNum: 1024
   deviceId: 1
-  addr: localhost:4021
+  addr: 0.0.0.0:4021
   endPoints:
     - http://localhost:2379
     - http://localhost:2380
