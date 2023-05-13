@@ -9,7 +9,6 @@ import (
 	"go-im/common/tcp"
 	"go-im/conf"
 	"go-im/log"
-	"io"
 	"net"
 	"reflect"
 	"sync"
@@ -98,9 +97,8 @@ func (m *Manager) processConn(conn *net.TCPConn) {
 		if err := c.codec.ReadFixedHeader(h); err != nil {
 			// 连接关闭
 			if err != nil {
-				if err == io.EOF || err == io.ErrUnexpectedEOF {
-					m.remove(c.fd)
-				}
+				m.remove(c.fd)
+				c.Close()
 				// 读走坏数据
 				_ = c.codec.ReadBody(nil)
 				return
