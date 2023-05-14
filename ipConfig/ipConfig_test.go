@@ -2,12 +2,14 @@ package ipConfig
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-im/common/discovery"
 	"go-im/conf"
 	"go-im/ipConfig/serviceManage"
 	"go-im/ipConfig/source"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -58,11 +60,19 @@ func TestServiceRegister(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	ch := make(chan int)
-	select {
-	case <-ch:
-		fmt.Println("Read")
-	case ch <- 1:
-		fmt.Println("write")
+	resp, err := http.Get("http://localhost:9999/ip/list")
+	if err != nil {
+		panic(err)
 	}
+	defer func() { _ = resp.Body.Close() }()
+	ipListBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	ipList := make([]string, 0)
+	println(string(ipListBytes))
+	if err = json.Unmarshal(ipListBytes, &ipList); err != nil {
+		panic(err)
+	}
+	fmt.Println(ipList)
 }

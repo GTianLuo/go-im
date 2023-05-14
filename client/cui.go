@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-im/client/sdk"
 	"go-im/common/tcp"
+	"go-im/conf"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -218,8 +219,10 @@ func pasteDown(g *gocui.Gui, cv *gocui.View) error {
 }
 
 func RunMain() {
+	//初始化配置文件
+	conf.Init("./conf/")
 	// step1 创建caht的核心对象
-	chat = sdk.NewChat("localhost:4021", "logic", "12312321", "2131")
+	chat = sdk.NewChat("logic", "12312321", "2131")
 	// step2 创建 GUI 图层对象并进行参与与回调函数的配置
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {

@@ -1,14 +1,19 @@
 package sdk
 
 import (
+	"encoding/json"
 	"go-im/common/tcp"
+	"go-im/conf"
+	"io"
+	"net/http"
 )
 
 type Chat struct {
-	Nick      string
-	UserID    string
-	SessionID string
-	conn      *connect
+	Nick           string
+	UserID         string
+	SessionID      string
+	conn           *connect
+	serverAddrList []string
 }
 
 type Message struct {
@@ -16,14 +21,32 @@ type Message struct {
 	Body   interface{}
 }
 
-func NewChat(serverAddr, nick, userID, sessionID string) *Chat {
-	return &Chat{
-		Nick:      nick,
-		UserID:    userID,
-		SessionID: sessionID,
-		conn:      newConnet(serverAddr),
+func NewChat(nick, userID, sessionID string) *Chat {
+	c := &Chat{
+		Nick:           nick,
+		UserID:         userID,
+		SessionID:      sessionID,
+		serverAddrList: LoadBalanceIpList(),
 	}
+	c.conn = newConnet(c.serverAddrList)
+	return c
+}
 
+func LoadBalanceIpList() []string {
+	resp, err := http.Get(conf.GetClientDiscoveryAddr())
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	ipListBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	ipList := make([]string, 0)
+	if err = json.Unmarshal(ipListBytes, &ipList); err != nil {
+		panic(err)
+	}
+	return ipList
 }
 
 func (c *Chat) SendText(to string, t string) {

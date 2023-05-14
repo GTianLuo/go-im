@@ -1,4 +1,8 @@
+client:
+  discovery: http://localhost:9999/ip/list
+
 ipConfig:
+  addr: 0.0.0.0:9999/ip/list
   etcdService: im/gatewayServer/
   endPoints:
     - http://localhost:2379
@@ -8,12 +12,11 @@ ipConfig:
   leaseDDL: 5
 
 
-
 gateway:
   maxConnsNum: 1000000
-  workPoolNum: 1024
+  workPoolNum: 1023
   deviceId: 1
-  addr: 0.0.0.0:4021
+  addr: 0.0.0.0:4025
   endPoints:
     - http://localhost:2379
     - http://localhost:2380

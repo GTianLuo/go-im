@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"github.com/bytedance/gopkg/util/logger"
+	"go-im/log"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"time"
@@ -56,6 +57,7 @@ func (dis *ServiceDiscovery) watch(prefix string, set func(key string, value str
 			preKv := event.PrevKv
 			switch event.Type {
 			case mvccpb.DELETE:
+				log.Info("=========================================================")
 				del(string(preKv.Key), string(preKv.Value))
 			case mvccpb.PUT:
 				set(string(kv.Key), string(kv.Value))

@@ -7,6 +7,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"go-im/common/discovery"
 	"go-im/common/tcp"
+	"go-im/common/util"
 	"go-im/conf"
 	"go-im/log"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 type iManager interface {
@@ -253,7 +255,28 @@ func (m *Manager) registerService() {
 		conf.GetGatewayDailTimeOut(),
 		conf.GetGatewayLeaseDDL(),
 		fmt.Sprintf("im/gatewayServer/%d", m.deviceId),
-		discovery.Transform(m.addr, 0, 0))
+		discovery.Transform(m.addr, m.getConnNums(), util.CPUPercent()))
+	go m.regularUpdateService()
+	go m.register.ListenKeepAliveChan()
+
+}
+
+//定期更新服务
+func (m *Manager) regularUpdateService() {
+	for {
+		tick := time.NewTicker(time.Second)
+		select {
+		case <-m.done:
+			tick.Stop()
+			return
+		case <-tick.C:
+			m.register.UpdateService(map[string]interface{}{"connect_num": m.getConnNums(), "message_bytes": util.CPUPercent()})
+		}
+	}
+}
+
+func (m *Manager) getConnNums() float64 {
+	return float64(atomic.LoadInt32(&m.hasConnNum))
 }
 
 func (m *Manager) Close() {

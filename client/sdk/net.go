@@ -14,20 +14,25 @@ type connect struct {
 	sendChan, recvChan chan *Message
 }
 
-func newConnet(serverAddr string) *connect {
-	conn, err := net.Dial("tcp", serverAddr)
-	if err != nil {
-		log.Fatal(err)
+func newConnet(serverAddrList []string) *connect {
+	log.Info(serverAddrList)
+	for i := 0; i < len(serverAddrList); i++ {
+		conn, err := net.Dial("tcp", serverAddrList[i])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		c := &connect{
+			serverAddr: serverAddrList[i],
+			codec:      codec.NewGobCodec(conn),
+			sendChan:   make(chan *Message),
+			recvChan:   make(chan *Message),
+		}
+		go c.handleSendChan()
+		go c.recvMessage()
+		return c
 	}
-	c := &connect{
-		serverAddr: serverAddr,
-		codec:      codec.NewGobCodec(conn),
-		sendChan:   make(chan *Message),
-		recvChan:   make(chan *Message),
-	}
-	go c.handleSendChan()
-	go c.recvMessage()
-	return c
+	panic("All connections are unavailable")
 }
 
 func (c *connect) recvMessage() {

@@ -3,6 +3,7 @@ package serviceManage
 import (
 	"go-im/ipConfig/source"
 	"go-im/log"
+	"sort"
 	"sync"
 )
 
@@ -32,12 +33,19 @@ func Init() {
 }
 
 // DisPatch 调度可用服务
-func DisPatch() []Candidate {
+func DisPatch() []string {
 	c := d.getCandidates()
-	if len(c) <= 5 {
-		return c
+	sort.Slice(c, func(i, j int) bool {
+		return c[i].Score < c[j].Score
+	})
+	s := make([]string, 0, 5)
+	for i := 0; i < 5; i++ {
+		if i >= len(c) {
+			return s
+		}
+		s = append(s, c[i].IP+":"+c[i].Port)
 	}
-	return c[:5]
+	return s
 }
 
 func (d *DisPatcher) getCandidates() []Candidate {
@@ -53,8 +61,8 @@ func (d *DisPatcher) getCandidates() []Candidate {
 func (d *DisPatcher) addCandidate(event *source.Event) {
 	d.rwMu.Lock()
 	defer d.rwMu.Unlock()
-	d.candidateTable[event.Key()] = NewCandidate(event)
-	log.Info("add candidate ", event.Key())
+	d.candidateTable[event.Key()] = NewCandidate(event, getScore(event.ConnectNum, event.MessageBytes))
+	log.Info("add candidate ", event.Key(), "hold service:", len(d.candidateTable))
 }
 
 func (d *DisPatcher) delCandidate(event *source.Event) {
@@ -62,4 +70,8 @@ func (d *DisPatcher) delCandidate(event *source.Event) {
 	defer d.rwMu.Unlock()
 	delete(d.candidateTable, event.Key())
 	log.Info("del candidate ", event.Key())
+}
+
+func getScore(connNums float64, messageBytes float64) float64 {
+	return connNums/1024 + messageBytes
 }

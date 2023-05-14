@@ -51,5 +51,5 @@ func EventChan() <-chan *Event {
 }
 
 func (e *Event) Key() string {
-	return e.Ip + e.Port
+	return e.Ip + ":" + e.Port
 }

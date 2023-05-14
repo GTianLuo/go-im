@@ -62,9 +62,9 @@ func (s *ServiceRegister) keepAlive() {
 
 func (s *ServiceRegister) ListenKeepAliveChan() {
 	for _ = range s.keepAliveChan {
-		logger.Info(s.key, "successful keep alive")
+		//logger.Info(s.key, "successful keep alive")
 	}
-	logger.Info(s.key, "failed to keep alive")
+	panic(s.key + "failed to keep alive")
 }
 
 func (s *ServiceRegister) Close() {
@@ -72,4 +72,15 @@ func (s *ServiceRegister) Close() {
 	//撤销租约
 	_, _ = s.cli.Revoke(s.ctx, s.lease)
 	logger.Info(s.key, "has revoke lease")
+}
+
+func (s *ServiceRegister) UpdateService(metadata map[string]interface{}) {
+	s.value.Metadata = metadata
+	valueS, err := s.value.Marshal()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err = s.cli.Put(context.Background(), s.key, valueS, clientv3.WithLease(s.lease)); err != nil {
+		log.Fatal(err)
+	}
 }

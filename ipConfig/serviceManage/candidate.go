@@ -8,10 +8,10 @@ type Candidate struct {
 	Score float64
 }
 
-func NewCandidate(e *source.Event) *Candidate {
+func NewCandidate(e *source.Event, score float64) *Candidate {
 	return &Candidate{
 		IP:    e.Ip,
 		Port:  e.Port,
-		Score: 100,
+		Score: score,
 	}
 }
