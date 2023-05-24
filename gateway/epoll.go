@@ -1,7 +1,7 @@
 package gateway
 
 import (
-	"go-im/conf"
+	"go-im/common/conf/serviceConf"
 	"syscall"
 )
 
@@ -33,7 +33,7 @@ func (e *epoller) delEpollTask(fd int32) error {
 }
 
 func (e *epoller) eventTigger() ([]syscall.EpollEvent, int, error) {
-	events := make([]syscall.EpollEvent, conf.GetGateWayEpollMaxTriggerConn())
+	events := make([]syscall.EpollEvent, serviceConf.GetGateWayEpollMaxTriggerConn())
 	n, err := syscall.EpollWait(e.epollfd, events, 200)
 	if err != nil {
 		return events, 0, err

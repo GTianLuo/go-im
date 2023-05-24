@@ -1,0 +1,24 @@
+syntax = "proto3"; // 版本声明，使用Protocol Buffers v3版本
+
+option go_package = "../";  // 指定生成的Go代码在你项目中的导入路径
+
+package server; // 包名
+
+
+// 为下游的Gateway提供鉴权服务
+// 定义服务
+service IpConfig{
+  // SayHello 方法
+  rpc Auth (AuthRequest) returns (AuthResponse) {}
+}
+
+// 请求消息
+message AuthRequest {
+  string account = 1;
+  string token = 2;
+}
+
+// 响应消息
+message AuthResponse {
+  bool success = 1;
+}

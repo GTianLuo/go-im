@@ -2,8 +2,8 @@ package sdk
 
 import (
 	"encoding/json"
+	"go-im/common/conf/serviceConf"
 	"go-im/common/tcp"
-	"go-im/conf"
 	"io"
 	"net/http"
 )
@@ -33,7 +33,7 @@ func NewChat(nick, userID, sessionID string) *Chat {
 }
 
 func LoadBalanceIpList() []string {
-	resp, err := http.Get(conf.GetClientDiscoveryAddr())
+	resp, err := http.Get(serviceConf.GetClientDiscoveryAddr())
 	if err != nil {
 		panic(err)
 	}

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-im/common/conf"
 	"go-im/common/discovery"
-	"go-im/conf"
 	"go-im/ipConfig/serviceManage"
 	"go-im/ipConfig/source"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -75,4 +76,8 @@ func TestSelect(t *testing.T) {
 		panic(err)
 	}
 	fmt.Println(ipList)
+}
+
+func TestPath(t *testing.T) {
+	fmt.Println(filepath.Join("hello\\hello.c", ".."))
 }

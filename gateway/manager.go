@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"go-im/common/conf/serviceConf"
 	"go-im/common/discovery"
+	"go-im/common/log"
 	"go-im/common/tcp"
 	"go-im/common/util"
-	"go-im/conf"
-	"go-im/log"
 	"net"
 	"reflect"
 	"runtime"
@@ -40,8 +40,8 @@ var m *Manager
 
 func initManager() error {
 	m = &Manager{
-		deviceId: conf.GetGateWayDeviceId(),
-		addr:     conf.GetGateWayAddr(),
+		deviceId: serviceConf.GetGateWayDeviceId(),
+		addr:     serviceConf.GetGateWayAddr(),
 		connChan: make(chan *connection, 3),
 		recv:     make(chan *MessageEvent, 10),
 		send:     make(chan *MessageEvent, 10),
@@ -55,7 +55,7 @@ func initManager() error {
 		return err
 	}
 	m.lis = lis
-	if m.workPool, err = ants.NewPool(conf.GetGateWayWorkPoolNum()); err != nil {
+	if m.workPool, err = ants.NewPool(serviceConf.GetGateWayWorkPoolNum()); err != nil {
 		return errors.New("failed init Manager: " + err.Error())
 	}
 	m.accept()
@@ -94,7 +94,7 @@ func (m *Manager) accept() {
 }
 
 func (m *Manager) initEpoll() {
-	for i := 0; i < conf.GetGateWayReactorNums(); i++ {
+	for i := 0; i < serviceConf.GetGateWayReactorNums(); i++ {
 		go m.StartEpoll()
 	}
 }
@@ -164,7 +164,7 @@ func (m *Manager) ReadMessage(conn *connection, e *epoller) {
 // CheckAndAddTcpNum 检查并添加连接数
 func (m *Manager) CheckAndAddTcpNum() bool {
 	//已经超过最大连接数
-	if atomic.LoadInt32(&m.hasConnNum) >= conf.GetGateWayMaxConnsNum() {
+	if atomic.LoadInt32(&m.hasConnNum) >= serviceConf.GetGateWayMaxConnsNum() {
 		return false
 	}
 	return true
@@ -251,9 +251,9 @@ func (m *Manager) handleDownstreamMessage() {
 func (m *Manager) registerService() {
 	m.register = discovery.NewServerRegister(
 		context.Background(),
-		conf.GetGatewayEndPoints(),
-		conf.GetGatewayDailTimeOut(),
-		conf.GetGatewayLeaseDDL(),
+		serviceConf.GetGatewayEndPoints(),
+		serviceConf.GetGatewayDailTimeOut(),
+		serviceConf.GetGatewayLeaseDDL(),
 		fmt.Sprintf("im/gatewayServer/%d", m.deviceId),
 		discovery.Transform(m.addr, m.getConnNums(), util.CPUPercent()))
 	go m.regularUpdateService()

@@ -1,8 +1,8 @@
 package gateway
 
 import (
-	"go-im/conf"
-	"go-im/log"
+	"go-im/common/conf"
+	"go-im/common/log"
 	"os"
 )
 

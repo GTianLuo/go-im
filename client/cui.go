@@ -3,8 +3,8 @@ package client
 import (
 	"fmt"
 	"go-im/client/sdk"
+	"go-im/common/conf"
 	"go-im/common/tcp"
-	"go-im/conf"
 	"io/ioutil"
 	"log"
 	"math/rand"
