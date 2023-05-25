@@ -32,7 +32,7 @@ func UserRegister(ctx *gin.Context) {
 	userDao := dao.NewUserDao()
 
 	//判断账号的唯一性
-	if exist, err := userDao.IsExist(user.Account); err != nil {
+	if exist, err := userDao.UserIsExist(user.Account); err != nil {
 		ctx.JSON(result.Ok, result.Fail(result.Error, err))
 		return
 	} else if exist {
@@ -55,16 +55,27 @@ func UserLogin(ctx *gin.Context) {
 		ctx.JSON(200, result.Fail(result.InvalidParam, err))
 		return
 	}
-
 	userDao := dao.NewUserDao()
 	//校验账号密码
-	if exist, err := userDao.IsExist(user.Account); err != nil {
+	exist, err := userDao.UserIsExist(user.Account)
+	if err != nil {
 		ctx.JSON(result.Ok, result.Fail(result.Error, err))
 		return
 	} else if !exist {
 		ctx.JSON(result.Ok, result.Fail(result.AccountNotExist, nil))
 		return
 	}
+	userModel, err := userDao.GetUserByAccount(user.Account)
+	if err != nil {
+		ctx.JSON(200, result.Fail(result.Error, err))
+		return
+	}
+	user.NickName = userModel.NickName
+	if util.Encryption(user.Password) != userModel.Password {
+		ctx.JSON(result.Ok, result.Fail(result.WrongPassword, nil))
+		return
+	}
+	user.NickName = userModel.NickName
 
 	//获取登陆列表
 	paths := serviceManage.DisPatch()
@@ -76,6 +87,6 @@ func UserLogin(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(result.Ok, result.Success(result.Ok, result.UserResult{Token: token, IpList: paths}))
+	ctx.JSON(result.Ok, result.Success(result.Ok, result.UserResult{Token: token, NickName: user.NickName, IpList: paths}))
 	return
 }

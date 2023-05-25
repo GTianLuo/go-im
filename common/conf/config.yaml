@@ -1,8 +1,8 @@
 client:
-  discovery: http://localhost:9999/ip/list
+  login: http://localhost:9999/user/login
 
 ipConfig:
-  addr: 0.0.0.0:9999/ip/list
+  addr: 0.0.0.0:9999/user/login
   etcdService: im/gatewayServer/
   endPoints:
     - http://localhost:2379
@@ -17,6 +17,7 @@ gateway:
   workPoolNum: 1023
   deviceId: 1
   addr: 0.0.0.0:4025
+  authAddr: 0.0.0.0:9998
   endPoints:
     - http://localhost:2379
     - http://localhost:2380

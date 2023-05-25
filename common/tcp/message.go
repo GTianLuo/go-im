@@ -8,37 +8,56 @@ const (
 	PrivateChatMessage
 	GroupChatMessage
 	AuthMessage
+	AuthResponseMessage
 )
 
 // FixedHeader 固定头部
 type FixedHeader struct {
-	Seq         int64       //序号 4个字节
+	MsgId       int64
+	PreMsgId    int64
+	From        string
 	MessageType MessageType //消息类型 1个字节
 }
 
-type PrivateChat struct {
-	From    string
+// PrivateChatMB  私人聊天消息
+type PrivateChatMB struct {
 	To      string
 	Content string
 }
 
-type GroupChat struct {
-	From  string
-	Group string
-	//Content string
+// GroupChatMB 群聊消息
+type GroupChatMB struct {
+	Group   string
+	Content string
 }
 
-type HeartBeat struct {
+// AuthMB 登陆鉴权消息
+type AuthMB struct {
+	Token string
+}
+
+// AuthResponseMB 登陆鉴权响应
+type AuthResponseMB struct {
+	Status int    // -1表示内部错误，0表示鉴权失败，1表示成功,2表示该网关连接达到上限，需重新连接
+	ErrMsg string //错误信息
+}
+
+// HeartBeatMB 心跳消息，空结构体
+type HeartBeatMB struct {
 }
 
 func GetMessageBody(t MessageType) interface{} {
 	switch t {
 	case PrivateChatMessage:
-		return new(PrivateChat)
+		return new(PrivateChatMB)
 	case HeartBeatMessage:
-		return new(HeartBeat)
+		return new(HeartBeatMB)
 	case GroupChatMessage:
-		return new(GroupChat)
+		return new(GroupChatMB)
+	case AuthMessage:
+		return new(AuthMB)
+	case AuthResponseMessage:
+
 	}
 	return nil
 }

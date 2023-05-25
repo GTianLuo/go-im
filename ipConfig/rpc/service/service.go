@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"go-im/common/dao"
 	"go-im/common/log"
 	"google.golang.org/grpc"
@@ -36,12 +37,12 @@ func (s *Service) Auth(ctx context.Context, r *AuthRequest) (*AuthResponse, erro
 	userDao := dao.NewUserDao()
 	userStatus, err := userDao.GetLoginStatus(r.Account)
 	if err != nil {
-		return response, nil
+		return response, err
 	}
-
+	fmt.Println(userStatus)
 	//校验token
 	if r.Token != userStatus["token"] {
-		return response, nil
+		return response, err
 	}
 	response.Success = true
 	return response, nil

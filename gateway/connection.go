@@ -2,25 +2,23 @@ package gateway
 
 import (
 	"go-im/common/tcp/codec"
-	"net"
 	"sync"
 )
 
 type connection struct {
-	fd    int
-	conn  *net.TCPConn
-	codec codec.Codec
-	send  sync.RWMutex
+	fd      int
+	account string
+	codec   codec.Codec
+	send    sync.RWMutex
 }
 
-func NewConnection(fd int, conn *net.TCPConn) *connection {
+func NewConnection(fd int, codec codec.Codec) *connection {
 	return &connection{
 		fd:    fd,
-		conn:  conn,
-		codec: codec.NewGobCodec(conn),
+		codec: codec,
 	}
 }
 
 func (conn *connection) Close() error {
-	return conn.conn.Close()
+	return conn.codec.Close()
 }

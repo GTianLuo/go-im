@@ -2,16 +2,22 @@ package sdk
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"go-im/common/conf/serviceConf"
+	"go-im/common/result"
 	"go-im/common/tcp"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 )
 
 type Chat struct {
-	Nick           string
-	UserID         string
-	SessionID      string
+	nickName       string
+	account        string
+	token          string
+	MsgId          int64
 	conn           *connect
 	serverAddrList []string
 }
@@ -21,41 +27,55 @@ type Message struct {
 	Body   interface{}
 }
 
-func NewChat(nick, userID, sessionID string) *Chat {
-	c := &Chat{
-		Nick:           nick,
-		UserID:         userID,
-		SessionID:      sessionID,
-		serverAddrList: LoadBalanceIpList(),
+func NewChat(account string, password string) (*Chat, error) {
+	c := &Chat{}
+	if err := c.LoadBalanceIpList(account, password); err != nil {
+		return c, err
 	}
-	c.conn = newConnet(c.serverAddrList)
-	return c
+	c.newConnet(c.serverAddrList)
+	return c, nil
 }
 
-func LoadBalanceIpList() []string {
-	resp, err := http.Get(serviceConf.GetClientDiscoveryAddr())
+// LoadBalanceIpList 登陆账号(获取登陆token)，并获取gateway网关
+func (c *Chat) LoadBalanceIpList(account, password string) error {
+	resp, err := http.Post(serviceConf.GetClientLoginAddr(), "application/json",
+		strings.NewReader(`{"account":`+`"`+account+`",`+`"password":`+`"`+password+`"}`))
 	if err != nil {
 		panic(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	ipListBytes, err := io.ReadAll(resp.Body)
+	rBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
-	ipList := make([]string, 0)
-	if err = json.Unmarshal(ipListBytes, &ipList); err != nil {
+	fmt.Println(string(rBytes))
+	r := &result.Result{}
+	fmt.Println()
+	if err = json.Unmarshal(rBytes, r); err != nil {
 		panic(err)
 	}
-	return ipList
+	// 登陆失败
+	if r.Code != result.Ok {
+		return errors.New(r.Msg)
+	}
+	user := r.Data.(map[string]interface{})
+	for _, u := range user["ipList"].([]interface{}) {
+		c.serverAddrList = append(c.serverAddrList, u.(string))
+	}
+	c.nickName = user["nickName"].(string)
+	c.account = account
+	c.token = user["token"].(string)
+	return nil
 }
 
 func (c *Chat) SendText(to string, t string) {
 	h := &tcp.FixedHeader{
-		Seq:         1,
+		From:        c.account,
+		PreMsgId:    c.MsgId,
+		MsgId:       c.NextMsgId(),
 		MessageType: tcp.PrivateChatMessage,
 	}
-	body := &tcp.PrivateChat{
-		From:    c.UserID,
+	body := &tcp.PrivateChatMB{
 		To:      to,
 		Content: t,
 	}
@@ -70,4 +90,9 @@ func (chat *Chat) Close() {
 //Recv receive message
 func (chat *Chat) Recv() <-chan *Message {
 	return chat.conn.getRecvChan()
+}
+
+func (chat *Chat) NextMsgId() int64 {
+	chat.MsgId = time.Now().UnixNano()
+	return chat.MsgId
 }

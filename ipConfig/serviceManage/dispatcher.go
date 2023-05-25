@@ -62,7 +62,7 @@ func (d *DisPatcher) addCandidate(event *source.Event) {
 	d.rwMu.Lock()
 	defer d.rwMu.Unlock()
 	d.candidateTable[event.Key()] = NewCandidate(event, getScore(event.ConnectNum, event.MessageBytes))
-	log.Info("add candidate ", event.Key(), "hold service:", len(d.candidateTable))
+	//	log.Info("add candidate ", event.Key(), "hold service:", len(d.candidateTable))
 }
 
 func (d *DisPatcher) delCandidate(event *source.Event) {

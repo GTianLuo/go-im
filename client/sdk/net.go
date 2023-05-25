@@ -14,9 +14,9 @@ type connect struct {
 	sendChan, recvChan chan *Message
 }
 
-func newConnet(serverAddrList []string) *connect {
-	log.Info(serverAddrList)
+func (chat *Chat) newConnet(serverAddrList []string) {
 	for i := 0; i < len(serverAddrList); i++ {
+		//建立连接
 		conn, err := net.Dial("tcp", serverAddrList[i])
 		if err != nil {
 			log.Error(err)
@@ -28,9 +28,45 @@ func newConnet(serverAddrList []string) *connect {
 			sendChan:   make(chan *Message),
 			recvChan:   make(chan *Message),
 		}
+
+		//发送鉴权消息
+		header := &tcp.FixedHeader{
+			MsgId:       -1,
+			PreMsgId:    -1,
+			From:        chat.account,
+			MessageType: tcp.AuthMessage,
+		}
+		body := &tcp.AuthMB{
+			Token: chat.token,
+		}
+		if err = c.codec.Write(header, body); err != nil {
+			c.close()
+			panic(err)
+		}
+		// 读取鉴权响应
+		respH := &tcp.FixedHeader{}
+		respBody := &tcp.AuthResponseMB{}
+		if err = c.codec.ReadFixedHeader(respH); err != nil {
+			c.close()
+			panic(err)
+		}
+		if respH.MessageType != tcp.AuthResponseMessage {
+			c.close()
+			panic("wrong response type")
+		}
+		if err = c.codec.ReadBody(respBody); err != nil {
+			c.close()
+			panic(err)
+		}
+		if respBody.Status == 0 {
+			c.close()
+			panic(respBody.ErrMsg)
+		}
+		// 登陆成功
+		chat.conn = c
 		go c.handleSendChan()
 		go c.recvMessage()
-		return c
+		return
 	}
 	panic("All connections are unavailable")
 }
@@ -68,7 +104,9 @@ func (c *connect) getRecvChan() <-chan *Message {
 }
 
 func (c *connect) close() {
-	// 目前没啥值得回收的
+	_ = c.codec.Close()
+	close(c.recvChan)
+	close(c.sendChan)
 }
 
 func (c *connect) handleSendChan() {

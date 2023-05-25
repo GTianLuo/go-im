@@ -45,3 +45,7 @@ func GetGateWayEpollMaxTriggerConn() int {
 func GetGateWayReactorNums() int {
 	return conf.V.GetInt("gateway.reactorNum")
 }
+
+func GetGateWayAuthAddr() string {
+	return conf.V.GetString("gateway.authAddr")
+}

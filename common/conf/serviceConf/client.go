@@ -4,6 +4,6 @@ import (
 	"go-im/common/conf"
 )
 
-func GetClientDiscoveryAddr() string {
-	return conf.V.GetString("client.discovery")
+func GetClientLoginAddr() string {
+	return conf.V.GetString("client.login")
 }

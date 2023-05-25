@@ -9,7 +9,9 @@ import (
 	"go-im/common/discovery"
 	"go-im/common/log"
 	"go-im/common/tcp"
+	"go-im/common/tcp/codec"
 	"go-im/common/util"
+	"go-im/gateway/rpc/client"
 	"net"
 	"reflect"
 	"runtime"
@@ -79,18 +81,61 @@ func (m *Manager) accept() {
 					log.Error("failed accept: ", err)
 					return
 				}
-				// 限流
-				if !m.CheckAndAddTcpNum() {
-					log.Error("conn num has reached max,confuse connection")
-					_ = conn.Close()
+				c := codec.NewGobCodec(conn)
+				account, err := m.auth(c)
+				if err != nil {
+					log.Info(err)
+					_ = c.Close()
 					continue
 				}
-				c := NewConnection(getSocketFd(conn), conn)
-				m.storeConn(c)
-				m.connChan <- c
+				connN := NewConnection(getSocketFd(conn), c)
+				connN.account = account
+				m.storeConn(connN)
+				m.connChan <- connN
 			}
 		}()
 	}
+}
+
+// 鉴权 + 限流
+func (m *Manager) auth(codec codec.Codec) (string, error) {
+	//读取鉴权信息
+	reqH := &tcp.FixedHeader{}
+	reqBody := &tcp.AuthMB{}
+	respH := &tcp.FixedHeader{MsgId: -1, PreMsgId: -1, MessageType: tcp.AuthResponseMessage}
+	respBody := &tcp.AuthResponseMB{}
+	if err := codec.ReadFixedHeader(reqH); err != nil {
+		respBody.Status = -1
+		respBody.ErrMsg = err.Error()
+		_ = codec.Write(respH, respBody)
+		return "", err
+	}
+	if err := codec.ReadBody(reqBody); err != nil {
+		respBody.Status = -1
+		respBody.ErrMsg = err.Error()
+		_ = codec.Write(respH, respBody)
+		return "", err
+	}
+	//限流判断
+	if !m.CheckAndAddTcpNum() {
+		err := errors.New("conn num has reached max,confuse connection")
+		respBody.Status = 2
+		respBody.ErrMsg = err.Error()
+		_ = codec.Write(respH, respBody)
+		return "", err
+	}
+	//调用限流rpc接口
+	ok, err := client.Auth(reqH.From, reqBody.Token)
+	//回复响应
+	if !ok {
+		//鉴权失败
+		respBody.Status = 0
+		respBody.ErrMsg = err.Error()
+		_ = codec.Write(respH, respBody)
+		return "", err
+	}
+	respBody.Status = 1
+	return respH.From, codec.Write(respH, respBody)
 }
 
 func (m *Manager) initEpoll() {

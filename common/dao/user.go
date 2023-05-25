@@ -20,17 +20,29 @@ func (dao *UserDao) SaveUser(user *model.User) error {
 	return dao.db.Create(user).Error
 }
 
-func (dao *UserDao) IsExist(account string) (bool, error) {
+func (dao *UserDao) UserIsExist(account string) (bool, error) {
 	var count int64
-	err := dao.db.Model(&model.User{}).Select("account = ?", account).Count(&count).Error
+	user := &model.User{}
+	err := dao.db.Model(user).Where("account = ?", account).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
 	return count == 1, err
 }
 
+func (dao *UserDao) GetUserByAccount(account string) (*model.User, error) {
+	user := &model.User{}
+	err := dao.db.Where("account = ?", account).Find(user).Error
+	return user, err
+}
+
 func (dao *UserDao) SaveLoginStatus(account, token string, nickName string) error {
-	return dao.cache.HMSet(UserLoginInfo+account, map[string]interface{}{token: token, account: account, nickName: nickName}).Err()
+	err := dao.cache.HMSet(UserLoginInfo+account,
+		map[string]interface{}{"token": token, "nickName": nickName}).Err()
+	if err != nil {
+		return err
+	}
+	return dao.cache.Expire(UserLoginInfo+account, UserLoginInfoTTL).Err()
 }
 
 func (dao *UserDao) GetLoginStatus(account string) (map[string]string, error) {

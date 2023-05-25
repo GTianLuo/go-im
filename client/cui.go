@@ -67,8 +67,8 @@ func doRecv(g *gocui.Gui) {
 	for msg := range recvChannel {
 		switch msg.Header.MessageType {
 		case tcp.PrivateChatMessage:
-			b := msg.Body.(*tcp.PrivateChat)
-			viewPrint(g, b.From, b.Content, false)
+			b := msg.Body.(*tcp.PrivateChatMB)
+			viewPrint(g, msg.Header.From, b.Content, false)
 		}
 	}
 	g.Close()
@@ -220,9 +220,14 @@ func pasteDown(g *gocui.Gui, cv *gocui.View) error {
 
 func RunMain() {
 	//初始化配置文件
-	conf.Init("./conf/")
+	conf.Init("./common/conf/")
 	// step1 创建caht的核心对象
-	chat = sdk.NewChat("logic", "12312321", "2131")
+	var err error
+	chat, err = sdk.NewChat("2985496866", "123456")
+	if err != nil {
+		//TODO 快速重连
+		panic(err)
+	}
 	// step2 创建 GUI 图层对象并进行参与与回调函数的配置
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {

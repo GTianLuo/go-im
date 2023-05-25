@@ -7,6 +7,7 @@ const (
 
 	AccountHasExist = 10001
 	AccountNotExist = 10002
+	WrongPassword   = 10003
 )
 
 var m map[int]string
@@ -18,6 +19,7 @@ func init() {
 	m[InvalidParam] = "非法参数"
 	m[AccountHasExist] = "账号已经存在"
 	m[AccountNotExist] = "账号不存在"
+	m[WrongPassword] = "密码错误"
 
 }
 
@@ -32,8 +34,9 @@ type Result struct {
 }
 
 type UserResult struct {
-	Token  string `json:`
-	IpList []string
+	Token    string   `json:"token,omitempty"`
+	IpList   []string `json:"ipList,omitempty"`
+	NickName string   `json:"nickName,omitempty"`
 }
 
 func Fail(code int, err error) *Result {
