@@ -69,6 +69,12 @@ func doRecv(g *gocui.Gui) {
 		case tcp.PrivateChatMessage:
 			b := msg.Body.(*tcp.PrivateChatMB)
 			viewPrint(g, msg.Header.From, b.Content, false)
+		case tcp.SystemMessage:
+			b := msg.Body.(*tcp.SystemMB)
+			if b.ReConn {
+				go chat.ReConn()
+			}
+			viewPrint(g, msg.Header.From, b.ErrMsg, false)
 		}
 	}
 	g.Close()
@@ -223,9 +229,8 @@ func RunMain() {
 	conf.Init("./common/conf/")
 	// step1 创建caht的核心对象
 	var err error
-	chat, err = sdk.NewChat("2985496866", "123456")
+	chat, err = sdk.NewChat("2985496686", "123456")
 	if err != nil {
-		//TODO 快速重连
 		panic(err)
 	}
 	// step2 创建 GUI 图层对象并进行参与与回调函数的配置

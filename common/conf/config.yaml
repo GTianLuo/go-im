@@ -27,6 +27,7 @@ gateway:
   reactorNum: 3 #反应堆数
   dailTimeOut: 5
   leaseDDL: 5
+  heartBeatTimeout: 3
 
 mysql:
   db: mysql

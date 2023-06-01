@@ -3,6 +3,7 @@ package gateway
 import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"go-im/common/log"
 	"net"
 	"testing"
 )
@@ -29,5 +30,16 @@ func TestWorkPool(t *testing.T) {
 		pool.Submit(func() {
 
 		})
+	}
+}
+
+func TestChannel(t *testing.T) {
+	ch := make(chan bool, 1)
+	close(ch)
+	select {
+	case c := <-ch:
+		log.Info(c)
+	default:
+		log.Info(222)
 	}
 }

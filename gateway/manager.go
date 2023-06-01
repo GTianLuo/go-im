@@ -11,6 +11,7 @@ import (
 	"go-im/common/tcp"
 	"go-im/common/tcp/codec"
 	"go-im/common/util"
+	"go-im/gateway/epoll"
 	"go-im/gateway/rpc/client"
 	"net"
 	"reflect"
@@ -31,7 +32,7 @@ type Manager struct {
 	table      sync.Map                   //连接和id的映射
 	workPool   *ants.Pool                 //协程池
 	hasConnNum int32                      //现有连接数
-	connChan   chan *connection           //accept conn事件后，通知epoll
+	connChan   chan *Connection           //accept conn事件后，通知epoll
 	recv       chan *MessageEvent         // 处理上游消息
 	send       chan *MessageEvent         //处理下游消息
 	register   *discovery.ServiceRegister //服务注册
@@ -44,7 +45,7 @@ func initManager() error {
 	m = &Manager{
 		deviceId: serviceConf.GetGateWayDeviceId(),
 		addr:     serviceConf.GetGateWayAddr(),
-		connChan: make(chan *connection, 3),
+		connChan: make(chan *Connection, 3),
 		recv:     make(chan *MessageEvent, 10),
 		send:     make(chan *MessageEvent, 10),
 	}
@@ -88,8 +89,7 @@ func (m *Manager) accept() {
 					_ = c.Close()
 					continue
 				}
-				connN := NewConnection(getSocketFd(conn), c)
-				connN.account = account
+				connN := NewConnection(getSocketFd(conn), account, c, m)
 				m.storeConn(connN)
 				m.connChan <- connN
 			}
@@ -145,7 +145,7 @@ func (m *Manager) initEpoll() {
 }
 
 func (m *Manager) StartEpoll() {
-	e, err := createEpoll()
+	e, err := epoll.CreateEpoll()
 	if err != nil {
 		log.Info(err)
 	}
@@ -154,12 +154,13 @@ func (m *Manager) StartEpoll() {
 		for {
 			select {
 			case <-m.done:
-				log.Infof("epoll %d closed", e.epollfd)
-				_ = e.close()
+				log.Infof("epoll %d closed", e.Epollfd)
+				_ = e.Close()
 				return
 			case conn := <-m.connChan:
-				log.Infof("epoll %d 添加连接 %d", e.epollfd, conn.fd)
-				err := e.addEpollTask(int32(conn.fd))
+				log.Infof("epoll %d 添加连接 %d", e.Epollfd, conn.Fd)
+				conn.EpollFd = e.Epollfd
+				err := e.AddEpollTask(int32(conn.Fd))
 				if err != nil {
 					log.Info(err)
 				}
@@ -168,8 +169,10 @@ func (m *Manager) StartEpoll() {
 	}()
 	// 处理触发事件
 	for {
-		epollEvent, n, err := e.eventTigger()
+		epollEvent, n, err := e.EventTigger()
 		if err != nil && err != syscall.EINTR {
+			// EINTR 表示遇到中断，这里原因是epoll_wait超时
+			// TODO 处理其他错误
 			log.Info(err)
 			continue
 		}
@@ -184,26 +187,23 @@ func (m *Manager) StartEpoll() {
 	}
 }
 
-func (m *Manager) ReadMessage(conn *connection, e *epoller) {
+func (m *Manager) ReadMessage(conn *Connection, e *epoll.Epoller) {
 	h := &tcp.FixedHeader{}
-	if err := conn.codec.ReadFixedHeader(h); err != nil {
+	if err := conn.Codec.ReadFixedHeader(h); err != nil {
 		// 连接关闭
-		if err != nil {
-			m.remove(conn.fd)
-			if err := e.delEpollTask(int32(conn.fd)); err != nil {
-				log.Error(e.epollfd, "failed to del", conn.fd, err)
-				//log.Infof("摘除连接%d ")
-			}
-			_ = conn.Close()
-			return
+		m.Remove(conn.Fd)
+		if err := e.DelEpollTask(int32(conn.Fd)); err != nil {
+			log.Error(e.Epollfd, "failed to del", conn.Fd, err)
 		}
+		_ = conn.Close()
+		return
 	}
 	body := tcp.GetMessageBody(h.MessageType)
-	if err := conn.codec.ReadBody(body); err != nil {
+	if err := conn.Codec.ReadBody(body); err != nil {
 		log.Error(err)
 		return
 	}
-	m.recv <- NewMessageEvent(conn.fd, h, body)
+	m.recv <- NewMessageEvent(conn.Fd, h, body)
 }
 
 // CheckAndAddTcpNum 检查并添加连接数
@@ -215,21 +215,22 @@ func (m *Manager) CheckAndAddTcpNum() bool {
 	return true
 }
 
-func (m *Manager) storeConn(conn *connection) {
+func (m *Manager) storeConn(conn *Connection) {
 	atomic.AddInt32(&m.hasConnNum, 1)
-	m.table.Store(conn.fd, conn)
+	m.table.Store(conn.Fd, conn)
 
 }
 
-func (m *Manager) remove(id int) {
-	log.Infof("remove a connection %d", id)
+// Remove 删除连接在m上的映射
+func (m *Manager) Remove(id int) {
+	log.Infof("Remove a connection %d", id)
 	atomic.AddInt32(&m.hasConnNum, -1)
 	m.table.Delete(id)
 }
 
-func (m *Manager) load(id int) (*connection, error) {
+func (m *Manager) load(id int) (*Connection, error) {
 	if value, ok := m.table.Load(id); ok {
-		return value.(*connection), nil
+		return value.(*Connection), nil
 	}
 	return nil, errors.New(fmt.Sprintf("not found user %d", id))
 }
@@ -242,7 +243,12 @@ func getSocketFd(conn *net.TCPConn) int {
 
 func (m *Manager) UpstreamMessageTask(messE *MessageEvent) func() {
 	return func() {
-		m.send <- messE
+		switch messE.Header.MessageType {
+		case tcp.PrivateChatMessage:
+			m.send <- messE
+		case tcp.HeartBeatMessage:
+			m.handleHeartBeatMB(messE)
+		}
 	}
 }
 
@@ -262,22 +268,22 @@ func (m *Manager) handleUpstreamMessage() {
 }
 
 // 利用闭包解决进行协程池参数的传递
-func (m *Manager) downstreamMessageTask(conn *connection, messE *MessageEvent) func() {
+func (m *Manager) downstreamMessageTask(conn *Connection, messE *MessageEvent) func() {
 	return func() {
-		err := conn.codec.Write(messE.Header, messE.Body)
+		err := conn.Codec.Write(messE.Header, messE.Body)
 		if err != nil {
 			log.Error(err)
 			_ = conn.Close()
-			m.remove(conn.fd)
+			m.Remove(conn.Fd)
 		}
 	}
 }
 
 func (m *Manager) handleDownstreamMessage() {
 	for messE := range m.send {
-		conn, err := m.load(messE.UserID)
+		conn, err := m.load(messE.connId)
 		if err != nil {
-			log.Errorf("user %d not exist on this gateway", messE.UserID)
+			log.Errorf("user %d not exist on this gateway", messE.connId)
 			continue
 		}
 		for {
@@ -329,8 +335,18 @@ func (m *Manager) Close() {
 	close(m.send)
 	close(m.connChan)
 	m.table.Range(func(key, value any) bool {
-		conn := value.(*connection)
+		conn := value.(*Connection)
 		_ = conn.Close()
 		return true
 	})
+}
+
+// handleHeartBeatMB 处理心跳消息
+func (m *Manager) handleHeartBeatMB(msg *MessageEvent) {
+	conn, err := m.load(msg.connId)
+	if err != nil {
+		log.Info(err)
+		return
+	}
+	conn.resetHeartBeatTimer()
 }

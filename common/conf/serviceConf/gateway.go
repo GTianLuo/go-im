@@ -49,3 +49,7 @@ func GetGateWayReactorNums() int {
 func GetGateWayAuthAddr() string {
 	return conf.V.GetString("gateway.authAddr")
 }
+
+func GetGateWayHeartbeatTimeout() time.Duration {
+	return conf.V.GetDuration("gateway.heartBeatTimeout") * time.Second
+}

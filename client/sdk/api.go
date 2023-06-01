@@ -22,11 +22,6 @@ type Chat struct {
 	serverAddrList []string
 }
 
-type Message struct {
-	Header *tcp.FixedHeader
-	Body   interface{}
-}
-
 func NewChat(account string, password string) (*Chat, error) {
 	c := &Chat{}
 	if err := c.LoadBalanceIpList(account, password); err != nil {
@@ -95,4 +90,14 @@ func (chat *Chat) Recv() <-chan *Message {
 func (chat *Chat) NextMsgId() int64 {
 	chat.MsgId = time.Now().UnixNano()
 	return chat.MsgId
+}
+
+func (chat *Chat) ReConn() {
+	for {
+		if err := chat.conn.login(chat.serverAddrList, chat.account, chat.token); err != nil {
+			time.Sleep(time.Second * 3)
+			continue
+		}
+		return
+	}
 }

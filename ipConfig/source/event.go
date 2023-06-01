@@ -1,7 +1,6 @@
 package source
 
 import (
-	"fmt"
 	"github.com/bytedance/gopkg/util/logger"
 	"go-im/common/discovery"
 )
@@ -26,7 +25,6 @@ type Event struct {
 func NewEvent(key, value string) *Event {
 	//解析value
 	ed := &discovery.EndpointInfo{}
-	fmt.Println(value)
 	if err := ed.UnMarshal([]byte(value)); err != nil {
 		logger.Fatal("failed to unmrshal:", err)
 	}

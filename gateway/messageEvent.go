@@ -3,11 +3,11 @@ package gateway
 import "go-im/common/tcp"
 
 type MessageEvent struct {
-	UserID int
+	connId int
 	Header *tcp.FixedHeader
 	Body   interface{}
 }
 
-func NewMessageEvent(userId int, h *tcp.FixedHeader, body interface{}) *MessageEvent {
-	return &MessageEvent{UserID: userId, Header: h, Body: body}
+func NewMessageEvent(connId int, h *tcp.FixedHeader, body interface{}) *MessageEvent {
+	return &MessageEvent{connId: connId, Header: h, Body: body}
 }

@@ -9,6 +9,7 @@ const (
 	GroupChatMessage
 	AuthMessage
 	AuthResponseMessage
+	SystemMessage
 )
 
 // FixedHeader 固定头部
@@ -46,6 +47,12 @@ type AuthResponseMB struct {
 type HeartBeatMB struct {
 }
 
+// SystemMB 系统消息
+type SystemMB struct {
+	ErrMsg string
+	ReConn bool // 是否需要重连
+}
+
 func GetMessageBody(t MessageType) interface{} {
 	switch t {
 	case PrivateChatMessage:
@@ -57,7 +64,6 @@ func GetMessageBody(t MessageType) interface{} {
 	case AuthMessage:
 		return new(AuthMB)
 	case AuthResponseMessage:
-
 	}
 	return nil
 }
