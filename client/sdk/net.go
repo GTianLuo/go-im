@@ -7,6 +7,7 @@ import (
 	"go-im/common/tcp/codec"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -26,8 +27,8 @@ func (chat *Chat) newConnet(serverAddrList []string) {
 	close(c.closed)
 	chat.conn = c
 	for {
-		if err := c.login(serverAddrList, chat.account, chat.token); err != nil {
-			//log.Info(err)
+		if err := c.login(serverAddrList, chat.account, chat.token, atomic.LoadInt64(&chat.MsgAckId)); err != nil {
+			log.ClientError("failed to login:", err.Error())
 			time.Sleep(time.Second * 3)
 			continue
 		}
@@ -35,20 +36,19 @@ func (chat *Chat) newConnet(serverAddrList []string) {
 	}
 }
 
-func (c *connect) login(serverAddrList []string, account string, token string) error {
+func (c *connect) login(serverAddrList []string, account string, token string, msgId int64) error {
 	for _, serverAddr := range serverAddrList {
 		// 建立连接
 		conn, err := net.Dial("tcp", serverAddr)
 		if err != nil {
-			log.Error(err)
+			log.ClientError("failed dial to remote conn:", err.Error())
 			continue
 		}
 		c.codec = codec.NewGobCodec(conn)
 		c.serverAddr = serverAddr
 		//发送鉴权消息
 		header := &tcp.FixedHeader{
-			MsgId:       -1,
-			PreMsgId:    -1,
+			MsgId:       msgId,
 			From:        account,
 			MessageType: tcp.AuthMessage,
 		}
@@ -96,6 +96,7 @@ func (c *connect) recvMessage() {
 			if err != nil {
 				if err == io.EOF || err == io.ErrUnexpectedEOF {
 					//快速重连
+					log.ClientInfo("Network disconnection")
 					close(c.closed)
 					c.reConnection()
 					return
@@ -145,7 +146,8 @@ func (c *connect) handleSendChan() {
 			return
 		case m := <-c.sendChan:
 			if err := c.codec.Write(m.Header, m.Body); err != nil {
-				log.Fatal(err)
+				//log.Fatal(err)
+				return
 			}
 		}
 	}

@@ -40,7 +40,7 @@ func (t *Timer) setBucket(b *bucket) {
 func (t *Timer) Stop() bool {
 	stopped := false
 	for b := t.getBucket(); b != nil; b = t.getBucket() {
-		// If b.Remove is called just after the timing wheel's goroutine has:
+		// If b.removeConn is called just after the timing wheel's goroutine has:
 		//     1. removed t from b (through b.Flush -> b.remove)
 		//     2. moved t from b to another bucket ab (through b.Flush -> b.remove and ab.Add)
 		// this may fail to remove t due to the change of t's bucket.

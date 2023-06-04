@@ -13,6 +13,7 @@ import (
 	"go-im/common/util"
 	"go-im/gateway/epoll"
 	"go-im/gateway/rpc/client"
+	"math/rand"
 	"net"
 	"reflect"
 	"runtime"
@@ -24,7 +25,6 @@ import (
 
 type iManager interface {
 }
-
 type Manager struct {
 	deviceId   int32                      //设备编号
 	addr       string                     //服务地址
@@ -83,14 +83,21 @@ func (m *Manager) accept() {
 					return
 				}
 				c := codec.NewGobCodec(conn)
-				account, err := m.auth(c)
+				account, msgId, err := m.auth(c)
 				if err != nil {
 					log.Info(err)
 					_ = c.Close()
 					continue
 				}
-				connN := NewConnection(getSocketFd(conn), account, c, m)
-				m.storeConn(connN)
+				// 鉴权成功
+				connN := NewConnection(getSocketFd(conn), account, msgId, c, m)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				if err = m.storeConn(connN); err != nil {
+					continue
+				}
 				m.connChan <- connN
 			}
 		}()
@@ -98,23 +105,23 @@ func (m *Manager) accept() {
 }
 
 // 鉴权 + 限流
-func (m *Manager) auth(codec codec.Codec) (string, error) {
+func (m *Manager) auth(codec codec.Codec) (string, int64, error) {
 	//读取鉴权信息
 	reqH := &tcp.FixedHeader{}
 	reqBody := &tcp.AuthMB{}
-	respH := &tcp.FixedHeader{MsgId: -1, PreMsgId: -1, MessageType: tcp.AuthResponseMessage}
+	respH := &tcp.FixedHeader{MsgId: -1, MessageType: tcp.AuthResponseMessage}
 	respBody := &tcp.AuthResponseMB{}
 	if err := codec.ReadFixedHeader(reqH); err != nil {
 		respBody.Status = -1
 		respBody.ErrMsg = err.Error()
 		_ = codec.Write(respH, respBody)
-		return "", err
+		return "", 0, err
 	}
 	if err := codec.ReadBody(reqBody); err != nil {
 		respBody.Status = -1
 		respBody.ErrMsg = err.Error()
 		_ = codec.Write(respH, respBody)
-		return "", err
+		return "", 0, err
 	}
 	//限流判断
 	if !m.CheckAndAddTcpNum() {
@@ -122,7 +129,7 @@ func (m *Manager) auth(codec codec.Codec) (string, error) {
 		respBody.Status = 2
 		respBody.ErrMsg = err.Error()
 		_ = codec.Write(respH, respBody)
-		return "", err
+		return "", 0, err
 	}
 	//调用限流rpc接口
 	ok, err := client.Auth(reqH.From, reqBody.Token)
@@ -132,10 +139,10 @@ func (m *Manager) auth(codec codec.Codec) (string, error) {
 		respBody.Status = 0
 		respBody.ErrMsg = err.Error()
 		_ = codec.Write(respH, respBody)
-		return "", err
+		return "", 0, err
 	}
 	respBody.Status = 1
-	return respH.From, codec.Write(respH, respBody)
+	return reqH.From, reqH.MsgId, codec.Write(respH, respBody)
 }
 
 func (m *Manager) initEpoll() {
@@ -160,7 +167,7 @@ func (m *Manager) StartEpoll() {
 			case conn := <-m.connChan:
 				log.Infof("epoll %d 添加连接 %d", e.Epollfd, conn.Fd)
 				conn.EpollFd = e.Epollfd
-				err := e.AddEpollTask(int32(conn.Fd))
+				err = e.AddEpollTask(int32(conn.Fd))
 				if err != nil {
 					log.Info(err)
 				}
@@ -177,7 +184,7 @@ func (m *Manager) StartEpoll() {
 			continue
 		}
 		for i := 0; i < n; i++ {
-			conn, err := m.load(int(epollEvent[i].Fd))
+			conn, err := m.loadConn(int(epollEvent[i].Fd))
 			if err != nil {
 				log.Error(err)
 				continue
@@ -191,11 +198,7 @@ func (m *Manager) ReadMessage(conn *Connection, e *epoll.Epoller) {
 	h := &tcp.FixedHeader{}
 	if err := conn.Codec.ReadFixedHeader(h); err != nil {
 		// 连接关闭
-		m.Remove(conn.Fd)
-		if err := e.DelEpollTask(int32(conn.Fd)); err != nil {
-			log.Error(e.Epollfd, "failed to del", conn.Fd, err)
-		}
-		_ = conn.Close()
+		conn.CancelConn()
 		return
 	}
 	body := tcp.GetMessageBody(h.MessageType)
@@ -215,20 +218,24 @@ func (m *Manager) CheckAndAddTcpNum() bool {
 	return true
 }
 
-func (m *Manager) storeConn(conn *Connection) {
+func (m *Manager) storeConn(conn *Connection) error {
+	// 保存登陆状态
+	if err := conn.SaveConnStatus(int(m.deviceId)); err != nil {
+		return err
+	}
 	atomic.AddInt32(&m.hasConnNum, 1)
 	m.table.Store(conn.Fd, conn)
-
+	return nil
 }
 
-// Remove 删除连接在m上的映射
-func (m *Manager) Remove(id int) {
-	log.Infof("Remove a connection %d", id)
+// removeConn 删除连接在m上的映射
+func (m *Manager) removeConn(id int) {
+	log.Infof("removeConn a connection %d", id)
 	atomic.AddInt32(&m.hasConnNum, -1)
 	m.table.Delete(id)
 }
 
-func (m *Manager) load(id int) (*Connection, error) {
+func (m *Manager) loadConn(id int) (*Connection, error) {
 	if value, ok := m.table.Load(id); ok {
 		return value.(*Connection), nil
 	}
@@ -245,7 +252,7 @@ func (m *Manager) UpstreamMessageTask(messE *MessageEvent) func() {
 	return func() {
 		switch messE.Header.MessageType {
 		case tcp.PrivateChatMessage:
-			m.send <- messE
+			m.handlePrivateChatMessage(messE)
 		case tcp.HeartBeatMessage:
 			m.handleHeartBeatMB(messE)
 		}
@@ -273,15 +280,14 @@ func (m *Manager) downstreamMessageTask(conn *Connection, messE *MessageEvent) f
 		err := conn.Codec.Write(messE.Header, messE.Body)
 		if err != nil {
 			log.Error(err)
-			_ = conn.Close()
-			m.Remove(conn.Fd)
+			conn.CancelConn()
 		}
 	}
 }
 
 func (m *Manager) handleDownstreamMessage() {
 	for messE := range m.send {
-		conn, err := m.load(messE.connId)
+		conn, err := m.loadConn(messE.connId)
 		if err != nil {
 			log.Errorf("user %d not exist on this gateway", messE.connId)
 			continue
@@ -343,10 +349,45 @@ func (m *Manager) Close() {
 
 // handleHeartBeatMB 处理心跳消息
 func (m *Manager) handleHeartBeatMB(msg *MessageEvent) {
-	conn, err := m.load(msg.connId)
+	conn, err := m.loadConn(msg.connId)
 	if err != nil {
 		log.Info(err)
 		return
 	}
 	conn.resetHeartBeatTimer()
+}
+
+// handlePrivateChatMessage 处理私聊消息
+func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
+	conn, err := m.loadConn(e.connId)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	checkStatus := conn.CheckMessage(e.Header.MsgId)
+	switch checkStatus {
+	case NoHandle:
+		return
+	case NeedAck:
+		m.AckMessage(conn.Fd, e.Header.MsgId)
+	case NeedHandleAndAck:
+		if rand.Intn(10) <= 5 {
+			log.Info("消息丢失")
+			return
+		}
+		m.send <- e
+		conn.AddMsgId()
+		m.AckMessage(conn.Fd, e.Header.MsgId)
+
+	}
+}
+
+// AckMessage ack确认消息
+func (m *Manager) AckMessage(connId int, msgId int64) {
+	ackH := &tcp.FixedHeader{
+		MsgId:       msgId,
+		MessageType: tcp.AckMessage,
+	}
+	ackB := tcp.GetMessageBody(tcp.AckMessage)
+	m.send <- NewMessageEvent(connId, ackH, ackB)
 }

@@ -11,7 +11,6 @@ import (
 	"go-im/ipConfig/source"
 	"io"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -76,8 +75,4 @@ func TestSelect(t *testing.T) {
 		panic(err)
 	}
 	fmt.Println(ipList)
-}
-
-func TestPath(t *testing.T) {
-	fmt.Println(filepath.Join("hello\\hello.c", ".."))
 }

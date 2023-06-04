@@ -12,8 +12,15 @@ type UserDao struct {
 	cache *redis.Client
 }
 
+var userDao *UserDao
+
+func initUserDao() {
+	userDao = &UserDao{db: dbConf.NewDBClient(), cache: dbConf.NewRedisClient()}
+}
+
 func NewUserDao() *UserDao {
-	return &UserDao{db: dbConf.NewDBClient(), cache: dbConf.NewRedisClient()}
+	o.Do(initUserDao)
+	return userDao
 }
 
 func (dao *UserDao) SaveUser(user *model.User) error {

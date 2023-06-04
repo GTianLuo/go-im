@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-im/client/sdk"
 	"go-im/common/conf"
+	log2 "go-im/common/log"
 	"go-im/common/tcp"
 	"io/ioutil"
 	"log"
@@ -75,6 +76,8 @@ func doRecv(g *gocui.Gui) {
 				go chat.ReConn()
 			}
 			viewPrint(g, msg.Header.From, b.ErrMsg, false)
+		case tcp.AckMessage:
+			chat.HandleAck(msg)
 		}
 	}
 	g.Close()
@@ -95,13 +98,14 @@ func doSay(g *gocui.Gui, cv *gocui.View) {
 		if p != nil {
 			// 先把自己说的话显示到消息流中
 			viewPrint(g, "me", string(p), false)
-			chat.SendText("2112", string(p))
+			chat.SendPrivateText("2112", string(p))
 		}
 		v.Autoscroll = true
 	}
 }
 
 func viewUpdate(g *gocui.Gui, cv *gocui.View) error {
+
 	doSay(g, cv)
 	l := len(cv.Buffer())
 	cv.MoveCursor(0-l, 0, true)
@@ -227,6 +231,8 @@ func pasteDown(g *gocui.Gui, cv *gocui.View) error {
 func RunMain() {
 	//初始化配置文件
 	conf.Init("./common/conf/")
+	//初始化日志
+	log2.InitClientLogFile()
 	// step1 创建caht的核心对象
 	var err error
 	chat, err = sdk.NewChat("2985496686", "123456")

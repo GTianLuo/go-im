@@ -20,6 +20,7 @@ func GetEpoller(epollfd int) *Epoller {
 }
 
 func CreateEpoll() (*Epoller, error) {
+
 	//创建非阻塞的epoll
 	efd, err := syscall.EpollCreate1(0)
 	if err != nil {

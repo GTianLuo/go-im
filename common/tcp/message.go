@@ -10,12 +10,14 @@ const (
 	AuthMessage
 	AuthResponseMessage
 	SystemMessage
+	AckMessage
 )
+
+type AckType int8
 
 // FixedHeader 固定头部
 type FixedHeader struct {
 	MsgId       int64
-	PreMsgId    int64
 	From        string
 	MessageType MessageType //消息类型 1个字节
 }
@@ -53,6 +55,11 @@ type SystemMB struct {
 	ReConn bool // 是否需要重连
 }
 
+// MessageAck ack
+type AckMB struct {
+	//AckType AckType
+}
+
 func GetMessageBody(t MessageType) interface{} {
 	switch t {
 	case PrivateChatMessage:
@@ -63,6 +70,8 @@ func GetMessageBody(t MessageType) interface{} {
 		return new(GroupChatMB)
 	case AuthMessage:
 		return new(AuthMB)
+	case AckMessage:
+		return new(AckMB)
 	case AuthResponseMessage:
 	}
 	return nil

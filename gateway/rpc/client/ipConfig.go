@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"go-im/common/conf/serviceConf"
 	"go-im/ipConfig/rpc/service"
 	"google.golang.org/grpc"
@@ -22,9 +21,8 @@ func initIpConfigClient() {
 }
 
 func Auth(account, token string) (bool, error) {
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*100)
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10000)
 	resp, err := ipConfigClient.Auth(ctx, &service.AuthRequest{Account: account, Token: token})
-	fmt.Println("=========================")
 	if err != nil {
 		return false, err
 	}

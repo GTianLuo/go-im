@@ -1,5 +1,6 @@
 client:
   login: http://localhost:9999/user/login
+  maxReSendCount: 100
 
 ipConfig:
   addr: 0.0.0.0:9999/user/login

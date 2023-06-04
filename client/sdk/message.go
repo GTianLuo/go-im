@@ -10,7 +10,6 @@ type Message struct {
 func GetSystemMessage(msg string, reConn bool) *Message {
 	h := &tcp.FixedHeader{
 		MsgId:       -1,
-		PreMsgId:    -1,
 		From:        "(系统)",
 		MessageType: tcp.SystemMessage,
 	}
@@ -24,7 +23,6 @@ func GetSystemMessage(msg string, reConn bool) *Message {
 func GetHeartBeatMessage(from string) *Message {
 	h := &tcp.FixedHeader{
 		MsgId:       -1,
-		PreMsgId:    -1,
 		From:        from,
 		MessageType: tcp.HeartBeatMessage,
 	}
