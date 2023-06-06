@@ -8,12 +8,12 @@ import (
 	"go-im/common/conf/serviceConf"
 	"go-im/common/discovery"
 	"go-im/common/log"
+	"go-im/common/mq"
 	"go-im/common/tcp"
 	"go-im/common/tcp/codec"
 	"go-im/common/util"
 	"go-im/gateway/epoll"
 	"go-im/gateway/rpc/client"
-	"math/rand"
 	"net"
 	"reflect"
 	"runtime"
@@ -36,6 +36,7 @@ type Manager struct {
 	recv       chan *MessageEvent         // 处理上游消息
 	send       chan *MessageEvent         //处理下游消息
 	register   *discovery.ServiceRegister //服务注册
+	msgMq      *mq.MQWorker               //消息队列
 	done       chan struct{}              //manager关闭时，done关闭
 }
 
@@ -61,6 +62,11 @@ func initManager() error {
 	if m.workPool, err = ants.NewPool(serviceConf.GetGateWayWorkPoolNum()); err != nil {
 		return errors.New("failed init Manager: " + err.Error())
 	}
+	w, err := mq.NewWorker()
+	if err != nil {
+		return err
+	}
+	m.msgMq = w
 	m.accept()
 	m.initEpoll()
 	//处理上游消息
@@ -371,11 +377,6 @@ func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
 	case NeedAck:
 		m.AckMessage(conn.Fd, e.Header.MsgId)
 	case NeedHandleAndAck:
-		if rand.Intn(10) <= 5 {
-			log.Info("消息丢失")
-			return
-		}
-		m.send <- e
 		conn.AddMsgId()
 		m.AckMessage(conn.Fd, e.Header.MsgId)
 

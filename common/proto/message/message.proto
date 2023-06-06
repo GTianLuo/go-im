@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option go_package = "./;message";
+
+package message;
+// cd common/proto; protoc --proto_path=message  --go_out=plugins  message/message.proto
+
+enum CmdType { //枚举信令类型
+  PrivateMsgCmd = 0;
+  GroupMsgCmd = 1;
+  HeartBeatCmd = 2;
+  AuthCmd = 3;
+
+  MsgAck = 4;
+  HeartBeatAck = 5;
+  AuthAck = 6;
+}
+
+enum MsgType{ //枚举消息类型
+  TextMsg = 0;
+  PictureMsg = 1;
+}
+
+
+// 顶层cmd pb结构
+message Cmd{
+  CmdType Type = 1; //4字节
+  bytes Payload = 2;//
+}
+
+message PrivateMsg{ //单聊
+  MsgType Type = 1;
+  string From = 2;
+  string To = 3;
+  bytes Data = 4;
+}
+
+//群聊
+message GroupMsg{
+  MsgType Type = 1;
+  string From = 2;
+  string To = 3;
+  bytes Data = 4;
+}
+

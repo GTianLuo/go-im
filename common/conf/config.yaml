@@ -11,8 +11,6 @@ ipConfig:
     - http://localhost:2381
   dailTimeOut: 5
   leaseDDL: 5
-
-
 gateway:
   maxConnsNum: 1000000
   workPoolNum: 1023
@@ -43,3 +41,16 @@ redis:
   password: 2g0t0l374yyds
   db: 0
 
+mq:
+  user: user
+  password: user
+  ip: localhost
+  host: 5672
+  upMessage:
+    xName: direct.routeMsg
+    privateMsg:
+      queueName: private.queue
+      bindingKey: msg.private
+    groupMsg:
+      queueName: group.queue
+      bindingKey: msg.group
