@@ -4,6 +4,7 @@ import (
 	"go-im/common/conf"
 	"go-im/common/conf/dbConf"
 	"go-im/common/log"
+	"go-im/common/mq"
 	"go-im/common/timingwheel"
 	"go-im/gateway/rpc/client"
 	"os"
@@ -16,6 +17,9 @@ func RunMain() {
 	// 初始化db
 	dbConf.InitDbService()
 	client.RpcClientInit()
+	if err := mq.InitMQConn(); err != nil {
+		panic(err)
+	}
 	timingwheel.InitTimingWheel()
 	if err := initManager(); err != nil {
 		log.Fatal("failed run gateway:", err.Error())

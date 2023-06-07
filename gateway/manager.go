@@ -9,11 +9,12 @@ import (
 	"go-im/common/discovery"
 	"go-im/common/log"
 	"go-im/common/mq"
-	"go-im/common/tcp"
+	"go-im/common/proto/message"
 	"go-im/common/tcp/codec"
 	"go-im/common/util"
 	"go-im/gateway/epoll"
 	"go-im/gateway/rpc/client"
+	"google.golang.org/protobuf/proto"
 	"net"
 	"reflect"
 	"runtime"
@@ -88,7 +89,7 @@ func (m *Manager) accept() {
 					log.Error("failed accept: ", err)
 					return
 				}
-				c := codec.NewGobCodec(conn)
+				c := codec.NewProtoCodec(conn)
 				account, msgId, err := m.auth(c)
 				if err != nil {
 					log.Info(err)
@@ -113,42 +114,41 @@ func (m *Manager) accept() {
 // 鉴权 + 限流
 func (m *Manager) auth(codec codec.Codec) (string, int64, error) {
 	//读取鉴权信息
-	reqH := &tcp.FixedHeader{}
-	reqBody := &tcp.AuthMB{}
-	respH := &tcp.FixedHeader{MsgId: -1, MessageType: tcp.AuthResponseMessage}
-	respBody := &tcp.AuthResponseMB{}
-	if err := codec.ReadFixedHeader(reqH); err != nil {
-		respBody.Status = -1
-		respBody.ErrMsg = err.Error()
-		_ = codec.Write(respH, respBody)
+	authReqCmd, err := codec.ReadData()
+	if err != nil {
 		return "", 0, err
 	}
-	if err := codec.ReadBody(reqBody); err != nil {
-		respBody.Status = -1
-		respBody.ErrMsg = err.Error()
-		_ = codec.Write(respH, respBody)
+	authReq := &message.AuthRequest{}
+	err = proto.Unmarshal(authReqCmd.Payload, authReq)
+	if err != nil {
 		return "", 0, err
 	}
+	authResp := &message.AuthResponse{}
+	authRespCmd := &message.Cmd{Type: message.CmdType_AuthResponseCmd}
 	//限流判断
 	if !m.CheckAndAddTcpNum() {
 		err := errors.New("conn num has reached max,confuse connection")
-		respBody.Status = 2
-		respBody.ErrMsg = err.Error()
-		_ = codec.Write(respH, respBody)
+		authResp.Status = 2
+		authResp.ErrMsg = err.Error()
+		authRespCmd.Payload, _ = proto.Marshal(authRespCmd)
+		_ = codec.WriteData(authRespCmd)
 		return "", 0, err
+
 	}
 	//调用限流rpc接口
-	ok, err := client.Auth(reqH.From, reqBody.Token)
+	ok, err := client.Auth(authReqCmd.From, authReq.Token)
 	//回复响应
 	if !ok {
 		//鉴权失败
-		respBody.Status = 0
-		respBody.ErrMsg = err.Error()
-		_ = codec.Write(respH, respBody)
+		authResp.Status = 0
+		authResp.ErrMsg = err.Error()
+		authRespCmd.Payload, _ = proto.Marshal(authRespCmd)
+		_ = codec.WriteData(authRespCmd)
 		return "", 0, err
 	}
-	respBody.Status = 1
-	return reqH.From, reqH.MsgId, codec.Write(respH, respBody)
+	authResp.Status = 1
+	authRespCmd.Payload, _ = proto.Marshal(authRespCmd)
+	return authReqCmd.From, authReqCmd.MsgId, codec.WriteData(authRespCmd)
 }
 
 func (m *Manager) initEpoll() {
@@ -195,24 +195,19 @@ func (m *Manager) StartEpoll() {
 				log.Error(err)
 				continue
 			}
-			m.ReadMessage(conn, e)
+			m.ReadMessage(conn)
 		}
 	}
 }
 
-func (m *Manager) ReadMessage(conn *Connection, e *epoll.Epoller) {
-	h := &tcp.FixedHeader{}
-	if err := conn.Codec.ReadFixedHeader(h); err != nil {
+func (m *Manager) ReadMessage(conn *Connection) {
+	cmd, err := conn.Codec.ReadData()
+	if err != nil {
 		// 连接关闭
 		conn.CancelConn()
 		return
 	}
-	body := tcp.GetMessageBody(h.MessageType)
-	if err := conn.Codec.ReadBody(body); err != nil {
-		log.Error(err)
-		return
-	}
-	m.recv <- NewMessageEvent(conn.Fd, h, body)
+	m.recv <- NewMessageEvent(conn.Fd, cmd)
 }
 
 // CheckAndAddTcpNum 检查并添加连接数
@@ -256,10 +251,10 @@ func getSocketFd(conn *net.TCPConn) int {
 
 func (m *Manager) UpstreamMessageTask(messE *MessageEvent) func() {
 	return func() {
-		switch messE.Header.MessageType {
-		case tcp.PrivateChatMessage:
+		switch messE.cmd.Type {
+		case message.CmdType_PrivateMsgCmd:
 			m.handlePrivateChatMessage(messE)
-		case tcp.HeartBeatMessage:
+		case message.CmdType_HeartBeatCmd:
 			m.handleHeartBeatMB(messE)
 		}
 	}
@@ -283,7 +278,7 @@ func (m *Manager) handleUpstreamMessage() {
 // 利用闭包解决进行协程池参数的传递
 func (m *Manager) downstreamMessageTask(conn *Connection, messE *MessageEvent) func() {
 	return func() {
-		err := conn.Codec.Write(messE.Header, messE.Body)
+		err := conn.Codec.WriteData(messE.cmd)
 		if err != nil {
 			log.Error(err)
 			conn.CancelConn()
@@ -370,25 +365,23 @@ func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
 		log.Error(err)
 		return
 	}
-	checkStatus := conn.CheckMessage(e.Header.MsgId)
+	checkStatus := conn.CheckMessage(e.cmd.MsgId)
 	switch checkStatus {
 	case NoHandle:
 		return
 	case NeedAck:
-		m.AckMessage(conn.Fd, e.Header.MsgId)
+		m.AckMessage(conn.Fd, e.cmd.MsgId)
 	case NeedHandleAndAck:
 		conn.AddMsgId()
-		m.AckMessage(conn.Fd, e.Header.MsgId)
+		m.send <- e
+		m.AckMessage(conn.Fd, e.cmd.MsgId)
 
 	}
 }
 
 // AckMessage ack确认消息
 func (m *Manager) AckMessage(connId int, msgId int64) {
-	ackH := &tcp.FixedHeader{
-		MsgId:       msgId,
-		MessageType: tcp.AckMessage,
-	}
-	ackB := tcp.GetMessageBody(tcp.AckMessage)
-	m.send <- NewMessageEvent(connId, ackH, ackB)
+	cmd := &message.Cmd{Type: message.CmdType_MsgAckCmd, MsgId: msgId}
+
+	m.send <- NewMessageEvent(connId, cmd)
 }

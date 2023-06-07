@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"go-im/client/sdk"
 	"go-im/common/conf"
-	log2 "go-im/common/log"
-	"go-im/common/tcp"
+	log "go-im/common/log"
+	"go-im/common/proto/message"
+	"google.golang.org/protobuf/proto"
 	"io/ioutil"
-	"log"
+
 	"math/rand"
 	"time"
 
@@ -65,19 +66,23 @@ func viewPrint(g *gocui.Gui, name, msg string, newline bool) {
 //doRecv work in goroutine
 func doRecv(g *gocui.Gui) {
 	recvChannel := chat.Recv()
-	for msg := range recvChannel {
-		switch msg.Header.MessageType {
-		case tcp.PrivateChatMessage:
-			b := msg.Body.(*tcp.PrivateChatMB)
-			viewPrint(g, msg.Header.From, b.Content, false)
-		case tcp.SystemMessage:
-			b := msg.Body.(*tcp.SystemMB)
-			if b.ReConn {
+	for cmd := range recvChannel {
+		switch cmd.Type {
+		case message.CmdType_PrivateMsgCmd:
+			msg := &message.PrivateMsg{}
+			if err := proto.Unmarshal(cmd.Payload, msg); err != nil {
+				log.ClientError(err)
+				continue
+			}
+			viewPrint(g, cmd.From, string(msg.Data), false)
+		case message.CmdType_SystemCmd:
+			b := cmd.MsgId
+			if b == 1 {
 				go chat.ReConn()
 			}
-			viewPrint(g, msg.Header.From, b.ErrMsg, false)
-		case tcp.AckMessage:
-			chat.HandleAck(msg)
+			viewPrint(g, cmd.From, string(cmd.Payload), false)
+		case message.CmdType_MsgAckCmd:
+			chat.HandleAck(cmd)
 		}
 	}
 	g.Close()
@@ -232,7 +237,7 @@ func RunMain() {
 	//初始化配置文件
 	conf.Init("./common/conf/")
 	//初始化日志
-	log2.InitClientLogFile()
+	log.InitClientLogFile()
 	// step1 创建caht的核心对象
 	var err error
 	chat, err = sdk.NewChat("2985496686", "123456")
@@ -242,7 +247,7 @@ func RunMain() {
 	// step2 创建 GUI 图层对象并进行参与与回调函数的配置
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 
 	g.Cursor = true
@@ -253,28 +258,28 @@ func RunMain() {
 
 	// 注册回调事件
 	if err := g.SetKeybinding("main", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 
 	if err := g.SetKeybinding("main", gocui.KeyEnter, gocui.ModNone, viewUpdate); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 	if err := g.SetKeybinding("main", gocui.KeyPgup, gocui.ModNone, viewUpScroll); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 	if err := g.SetKeybinding("main", gocui.KeyPgdn, gocui.ModNone, viewDownScroll); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 	if err := g.SetKeybinding("main", gocui.KeyArrowDown, gocui.ModNone, pasteDown); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 	if err := g.SetKeybinding("main", gocui.KeyArrowUp, gocui.ModNone, pasteUP); err != nil {
-		log.Panicln(err)
+		panic(err)
 	}
 	// 启动消费函数
 	go doRecv(g)
 	if err := g.MainLoop(); err != nil {
-		log.Println(err)
+		panic(err)
 	}
 
 	ioutil.WriteFile("chat.log", []byte(buf), 0644)

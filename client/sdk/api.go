@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"go-im/common/conf/serviceConf"
 	"go-im/common/log"
+	"go-im/common/proto/message"
 	"go-im/common/result"
-	"go-im/common/tcp"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"strings"
@@ -72,25 +73,25 @@ func (c *Chat) LoadBalanceIpList(account, password string) error {
 
 // SendPrivateText 发送私聊消息
 func (c *Chat) SendPrivateText(to string, t string) {
-	h := &tcp.FixedHeader{
-		From:        c.account,
-		MsgId:       c.NextMsgId(),
-		MessageType: tcp.PrivateChatMessage,
+	msg := &message.PrivateMsg{
+		Type: message.MsgType_TextMsg,
+		To:   to,
+		Data: []byte(t),
 	}
-	body := &tcp.PrivateChatMB{
-		To:      to,
-		Content: t,
+	bytes, err := proto.Marshal(msg)
+	if err != nil {
+		panic(err)
 	}
-	m := &Message{h, body}
-	c.conn.send(m)
-	go c.waitAck(m, body.Content)
+	cmd := &message.Cmd{Type: message.CmdType_PrivateMsgCmd, MsgId: c.NextMsgId(), From: c.account, Payload: bytes}
+	c.conn.send(cmd)
+	go c.waitAck(cmd, t)
 }
 
 // 等待Ack，负责超时重传
-func (c *Chat) waitAck(msg *Message, content string) {
+func (c *Chat) waitAck(cmd *message.Cmd, content string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.mu.Lock()
-	c.msgAckMap[msg.Header.MsgId] = cancel
+	c.msgAckMap[cmd.MsgId] = cancel
 	c.mu.Unlock()
 	for i := 1; i < serviceConf.GetClientMaxReSendNums(); i++ {
 		select {
@@ -99,12 +100,12 @@ func (c *Chat) waitAck(msg *Message, content string) {
 			return
 		case <-time.After(time.Millisecond * 500):
 			// 超时重传
-			log.ClientInfof("message: %d 超时重传\n", msg.Header.MsgId)
+			log.ClientInfof("message: %d 超时重传\n", cmd.MsgId)
 			select {
 			case <-c.conn.closed:
 				continue
 			default:
-				c.conn.sendChan <- msg
+				c.conn.sendChan <- cmd
 			}
 		}
 	}
@@ -112,7 +113,8 @@ func (c *Chat) waitAck(msg *Message, content string) {
 	case <-ctx.Done():
 		return
 	case <-time.After(time.Second * 3):
-		log.ClientInfof("message: %d 发送失败\n", msg.Header.MsgId)
+		log.ClientInfof("message: %d:%s 发送失败\n", cmd.MsgId, content)
+
 		c.conn.recvChan <- GetSystemMessage("发送失败："+content, false)
 	}
 }
@@ -123,7 +125,7 @@ func (chat *Chat) Close() {
 }
 
 //Recv receive message
-func (chat *Chat) Recv() <-chan *Message {
+func (chat *Chat) Recv() <-chan *message.Cmd {
 	return chat.conn.getRecvChan()
 }
 
@@ -144,14 +146,14 @@ func (chat *Chat) ReConn() {
 }
 
 // HandleAck 处理ack消息
-func (chat *Chat) HandleAck(msg *Message) {
-	//b := msg.Body.(tcp.AckMB)
-	log.ClientInfof("收到message：%d 的ACK\n", msg.Header.MsgId)
+func (chat *Chat) HandleAck(msg *message.Cmd) {
+	log.ClientInfof("收到message：%d 的ACK\n", msg.MsgId)
 	chat.mu.Lock()
-	if atomic.LoadInt64(&chat.MsgAckId) < msg.Header.MsgId {
-		atomic.StoreInt64(&chat.MsgAckId, msg.Header.MsgId)
+	if atomic.LoadInt64(&chat.MsgAckId) < msg.MsgId {
+		atomic.StoreInt64(&chat.MsgAckId, msg.MsgId)
 	}
 	//取消超时重传
-	chat.msgAckMap[msg.Header.MsgId]()
+	chat.msgAckMap[msg.MsgId]()
+	delete(chat.msgAckMap, msg.MsgId)
 	chat.mu.Unlock()
 }

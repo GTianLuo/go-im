@@ -1,31 +1,27 @@
 package sdk
 
-import "go-im/common/tcp"
+import (
+	"go-im/common/proto/message"
+)
 
-type Message struct {
-	Header *tcp.FixedHeader
-	Body   interface{}
+func GetSystemMessage(msg string, reConn bool) *message.Cmd {
+	cmd := &message.Cmd{
+		Type:    message.CmdType_SystemCmd,
+		Payload: []byte(msg),
+		From:    "用户",
+	}
+	if reConn {
+		cmd.MsgId = 1
+	} else {
+		cmd.MsgId = 0
+	}
+	return nil
 }
 
-func GetSystemMessage(msg string, reConn bool) *Message {
-	h := &tcp.FixedHeader{
-		MsgId:       -1,
-		From:        "(系统)",
-		MessageType: tcp.SystemMessage,
+func GetHeartBeatMessage(from string) *message.Cmd {
+	cmd := &message.Cmd{
+		Type: message.CmdType_HeartBeatCmd,
+		From: from,
 	}
-	b := &tcp.SystemMB{
-		ErrMsg: msg,
-		ReConn: reConn,
-	}
-	return &Message{h, b}
-}
-
-func GetHeartBeatMessage(from string) *Message {
-	h := &tcp.FixedHeader{
-		MsgId:       -1,
-		From:        from,
-		MessageType: tcp.HeartBeatMessage,
-	}
-	b := &tcp.HeartBeatMB{}
-	return &Message{h, b}
+	return cmd
 }

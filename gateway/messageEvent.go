@@ -1,13 +1,14 @@
 package gateway
 
-import "go-im/common/tcp"
+import (
+	"go-im/common/proto/message"
+)
 
 type MessageEvent struct {
 	connId int
-	Header *tcp.FixedHeader
-	Body   interface{}
+	cmd    *message.Cmd
 }
 
-func NewMessageEvent(connId int, h *tcp.FixedHeader, body interface{}) *MessageEvent {
-	return &MessageEvent{connId: connId, Header: h, Body: body}
+func NewMessageEvent(connId int, cmd *message.Cmd) *MessageEvent {
+	return &MessageEvent{connId: connId, cmd: cmd}
 }

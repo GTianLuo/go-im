@@ -22,7 +22,6 @@ type Cmd2 struct {
 
 func TestProto(t *testing.T) {
 	msg := &PrivateMsg{
-		From: "1",
 		To:   "1",
 		Type: MsgType_TextMsg,
 		Data: []byte("hello world"),

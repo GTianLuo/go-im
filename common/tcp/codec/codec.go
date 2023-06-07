@@ -1,13 +1,12 @@
 package codec
 
 import (
-	"go-im/common/tcp"
+	"go-im/common/proto/message"
 	"io"
 )
 
 type Codec interface {
 	io.Closer
-	ReadFixedHeader(*tcp.FixedHeader) error
-	ReadBody(interface{}) error
-	Write(*tcp.FixedHeader, interface{}) error
+	ReadData() (*message.Cmd, error)
+	WriteData(cmd *message.Cmd) error
 }

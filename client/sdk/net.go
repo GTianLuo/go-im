@@ -3,8 +3,9 @@ package sdk
 import (
 	"errors"
 	"go-im/common/log"
-	"go-im/common/tcp"
+	"go-im/common/proto/message"
 	"go-im/common/tcp/codec"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"net"
 	"sync/atomic"
@@ -14,14 +15,14 @@ import (
 type connect struct {
 	serverAddr         string
 	codec              codec.Codec
-	sendChan, recvChan chan *Message
+	sendChan, recvChan chan *message.Cmd
 	closed             chan struct{}
 }
 
 func (chat *Chat) newConnet(serverAddrList []string) {
 	c := &connect{
-		sendChan: make(chan *Message, 10),
-		recvChan: make(chan *Message, 10),
+		sendChan: make(chan *message.Cmd, 10),
+		recvChan: make(chan *message.Cmd, 10),
 		closed:   make(chan struct{}, 1),
 	}
 	close(c.closed)
@@ -44,39 +45,41 @@ func (c *connect) login(serverAddrList []string, account string, token string, m
 			log.ClientError("failed dial to remote conn:", err.Error())
 			continue
 		}
-		c.codec = codec.NewGobCodec(conn)
+		c.codec = codec.NewProtoCodec(conn)
 		c.serverAddr = serverAddr
 		//发送鉴权消息
-		header := &tcp.FixedHeader{
-			MsgId:       msgId,
-			From:        account,
-			MessageType: tcp.AuthMessage,
-		}
-		body := &tcp.AuthMB{
+		req := &message.AuthRequest{
 			Token: token,
 		}
-		if err := c.codec.Write(header, body); err != nil {
-			c.close()
+		reqBytes, err := proto.Marshal(req)
+		if err != nil {
+			_ = conn.Close()
+			panic(err)
+		}
+		authReqCmd := &message.Cmd{
+			Type:    message.CmdType_AuthRequestCmd,
+			MsgId:   msgId,
+			From:    account,
+			Payload: reqBytes,
+		}
+		if err = c.codec.WriteData(authReqCmd); err != nil {
+			_ = conn.Close()
 			return err
 		}
+
 		// 读取鉴权响应
-		respH := &tcp.FixedHeader{}
-		respBody := &tcp.AuthResponseMB{}
-		if err := c.codec.ReadFixedHeader(respH); err != nil {
-			c.close()
+		authRespCmd, err := c.codec.ReadData()
+		if err != nil {
+			_ = conn.Close()
 			return err
 		}
-		if respH.MessageType != tcp.AuthResponseMessage {
-			c.close()
-			panic("wrong response type")
+		authResp := &message.AuthResponse{}
+		if err = proto.Unmarshal(authRespCmd.Payload, authResp); err != nil {
+			panic(err)
 		}
-		if err := c.codec.ReadBody(respBody); err != nil {
+		if authResp.Status == 0 {
 			c.close()
-			return err
-		}
-		if respBody.Status == 0 {
-			c.close()
-			panic(respBody.ErrMsg)
+			panic(authResp.ErrMsg)
 		}
 		// 登陆成功
 		go c.handleSendChan()
@@ -90,8 +93,8 @@ func (c *connect) login(serverAddrList []string, account string, token string, m
 
 func (c *connect) recvMessage() {
 	for {
-		h := &tcp.FixedHeader{}
-		if err := c.codec.ReadFixedHeader(h); err != nil {
+		cmd, err := c.codec.ReadData()
+		if err != nil {
 			// 连接关闭
 			if err != nil {
 				if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -101,17 +104,12 @@ func (c *connect) recvMessage() {
 					c.reConnection()
 					return
 				}
-				// 读走坏数据
-				_ = c.codec.ReadBody(nil)
+				//非连接关闭的异常
+				panic(err)
 				return
 			}
 		}
-		body := tcp.GetMessageBody(h.MessageType)
-		if err := c.codec.ReadBody(body); err != nil {
-			log.Error(err)
-			continue
-		}
-		c.recvChan <- &Message{Header: h, Body: body}
+		c.recvChan <- cmd
 	}
 }
 
@@ -120,7 +118,7 @@ func (c *connect) reConnection() {
 	c.recvChan <- GetSystemMessage("连接断开，正在尝试重连", true)
 }
 
-func (c *connect) send(m *Message) {
+func (c *connect) send(m *message.Cmd) {
 	select {
 	case <-c.closed:
 		c.recvChan <- GetSystemMessage("无网络连接", false)
@@ -129,7 +127,7 @@ func (c *connect) send(m *Message) {
 	}
 }
 
-func (c *connect) getRecvChan() <-chan *Message {
+func (c *connect) getRecvChan() <-chan *message.Cmd {
 	return c.recvChan
 }
 
@@ -145,7 +143,7 @@ func (c *connect) handleSendChan() {
 		case <-c.closed:
 			return
 		case m := <-c.sendChan:
-			if err := c.codec.Write(m.Header, m.Body); err != nil {
+			if err := c.codec.WriteData(m); err != nil {
 				//log.Fatal(err)
 				return
 			}
