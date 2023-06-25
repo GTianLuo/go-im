@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"go-im/common/conf/middlewareConf"
 	"go-im/common/conf/serviceConf"
+	"go-im/common/dao"
 	"go-im/common/discovery"
 	"go-im/common/log"
+	"go-im/common/message"
 	"go-im/common/mq"
-	"go-im/common/proto/message"
 	"go-im/common/tcp/codec"
 	"go-im/common/util"
 	"go-im/gateway/epoll"
@@ -63,7 +65,11 @@ func initManager() error {
 	if m.workPool, err = ants.NewPool(serviceConf.GetGateWayWorkPoolNum()); err != nil {
 		return errors.New("failed init Manager: " + err.Error())
 	}
-	w, err := mq.NewWorker()
+	ch, err := middlewareConf.GetMqChannel()
+	if err != nil {
+		return err
+	}
+	w, err := mq.NewWorker(ch, serviceConf.GetGateWayMqXName(), serviceConf.GetGatewayMqRoutingKey())
 	if err != nil {
 		return err
 	}
@@ -365,23 +371,31 @@ func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
 		log.Error(err)
 		return
 	}
-	checkStatus := conn.CheckMessage(e.cmd.MsgId)
+	//赋予消息时间
+	e.cmd.Timestamp = time.Now().Unix()
+	checkStatus := conn.CheckAndAdd(e.cmd.MsgId)
 	switch checkStatus {
 	case NoHandle:
 		return
 	case NeedAck:
 		m.AckMessage(conn.Fd, e.cmd.MsgId)
 	case NeedHandleAndAck:
-		conn.AddMsgId()
 		m.send <- e
 		m.AckMessage(conn.Fd, e.cmd.MsgId)
-
+		id, err := dao.NewGatewayStatus().GetGlobalMessageId()
+		if err != nil {
+			panic(id)
+		}
+		e.cmd.MsgId = id
+		cmd, _ := proto.Marshal(e.cmd)
+		if err = m.msgMq.PublishMsg(cmd); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
 // AckMessage ack确认消息
 func (m *Manager) AckMessage(connId int, msgId int64) {
 	cmd := &message.Cmd{Type: message.CmdType_MsgAckCmd, MsgId: msgId}
-
 	m.send <- NewMessageEvent(connId, cmd)
 }

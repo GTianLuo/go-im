@@ -1,7 +1,7 @@
 package codec
 
 import (
-	"go-im/common/proto/message"
+	"go-im/common/message"
 	"io"
 )
 

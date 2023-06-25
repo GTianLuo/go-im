@@ -86,7 +86,6 @@ func (b *bucket) Add(t *Timer) {
 	e := b.timers.PushBack(t)
 	t.setBucket(b)
 	t.element = e
-
 	b.mu.Unlock()
 }
 

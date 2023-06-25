@@ -19,7 +19,6 @@ func cache(addr, password string, db int) {
 	if err != nil {
 		panic(fmt.Sprintf("redis failed connected:%s", err.Error()))
 	}
-	fmt.Println()
 	redisClient = rc
 }
 

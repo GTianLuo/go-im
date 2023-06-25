@@ -2,19 +2,33 @@ package mq
 
 import (
 	"go-im/common/conf"
-	"go-im/common/log"
+	"go-im/common/conf/middlewareConf"
+	"go-im/common/conf/serviceConf"
 	"testing"
 )
 
 func TestMQWorker_PublishMsg(t *testing.T) {
 	conf.Init("../conf/")
-	if err := InitMQConn(); err != nil {
+	if err := middlewareConf.InitMQConn(); err != nil {
 		panic(err)
 	}
-	worker, err := NewWorker()
+	if err := middlewareConf.InitMqService(); err != nil {
+		panic(err)
+	}
+	ch, err := middlewareConf.GetMqChannel()
 	if err != nil {
 		panic(err)
 	}
-	err = worker.PublishMsg("msg.private", []byte("sss"))
-	log.Error(err)
+	err = QueueBind(ch, serviceConf.GetGateWayMqXName(), serviceConf.GetGatewayMqQueueName())
+	if err != nil {
+		panic(err)
+	}
+
+	worker, err := NewWorker(ch, serviceConf.GetGateWayMqXName(), serviceConf.GetGatewayMqQueueName())
+	if err != nil {
+		panic(err)
+	}
+	if err = worker.PublishMsg([]byte("hello world")); err != nil {
+		panic(err)
+	}
 }

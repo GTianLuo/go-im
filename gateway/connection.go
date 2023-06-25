@@ -56,14 +56,12 @@ func (conn *Connection) Close() error {
 
 // SaveConnStatus 保存连接状态
 func (conn *Connection) SaveConnStatus(deviceId int) error {
-	dao := dao.NewGatewayStatus()
-	return dao.SaveConnStatus(deviceId, conn.Account)
+	return dao.NewGatewayStatus().SaveConnStatus(deviceId, conn.Account)
 }
 
 // DelConnStatus 删除连接状态
 func (conn *Connection) DelConnStatus(deviceId int) error {
-	dao := dao.NewGatewayStatus()
-	return dao.DelConnStatus(deviceId, conn.Account)
+	return dao.NewGatewayStatus().DelConnStatus(deviceId, conn.Account)
 }
 
 // CancelConn 关闭连接
@@ -91,21 +89,16 @@ func (conn *Connection) resetHeartBeatTimer() {
 	})
 }
 
-// CheckMessage 通过MsgId检查消息的可靠性，不重不漏
-func (conn *Connection) CheckMessage(msgId int64) int {
+// CheckAndAdd 通过MsgId检查消息的可靠性，不重不漏; 若MsgId无误，conn消耗一个msgId
+func (conn *Connection) CheckAndAdd(msgId int64) int {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	if conn.MsgId == msgId {
+		conn.MsgId++
 		return NeedHandleAndAck
 	} else if conn.MsgId > msgId {
 		return NeedAck
 	} else {
 		return NoHandle
 	}
-}
-
-func (conn *Connection) AddMsgId() {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	conn.MsgId++
 }

@@ -29,3 +29,49 @@
 [info]2023/06/07 14:40:32 api.go:150: 收到message：23 的ACK
 [info]2023/06/07 14:40:34 api.go:150: 收到message：24 的ACK
 [info]2023/06/07 14:40:35 api.go:150: 收到message：25 的ACK
+[info]2023/06/07 15:34:46 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/07 15:34:47 net.go:102: Network disconnection
+[info]2023/06/07 15:39:08 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/07 15:39:09 api.go:150: 收到message：0 的ACK
+[info]2023/06/07 15:39:10 api.go:150: 收到message：1 的ACK
+[info]2023/06/07 15:39:11 api.go:150: 收到message：2 的ACK
+[info]2023/06/07 15:39:11 api.go:150: 收到message：3 的ACK
+[info]2023/06/14 19:12:00 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/14 19:12:01 api.go:150: 收到message：0 的ACK
+[info]2023/06/14 19:12:02 api.go:150: 收到message：1 的ACK
+[info]2023/06/14 19:12:03 api.go:150: 收到message：2 的ACK
+[info]2023/06/14 23:12:27 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/14 23:12:29 api.go:103: message.pb: 0 超时重传
+[info]2023/06/14 23:12:30 api.go:103: message.pb: 0 超时重传
+[info]2023/06/14 23:12:30 api.go:103: message.pb: 0 超时重传
+[info]2023/06/14 23:12:31 net.go:102: Network disconnection
+[info]2023/06/14 23:21:01 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/14 23:21:02 api.go:150: 收到message：0 的ACK
+[info]2023/06/14 23:21:03 api.go:150: 收到message：1 的ACK
+[info]2023/06/14 23:21:59 api.go:150: 收到message：2 的ACK
+[info]2023/06/14 23:22:00 api.go:150: 收到message：3 的ACK
+[info]2023/06/14 23:22:01 api.go:150: 收到message：4 的ACK
+[info]2023/06/14 23:22:01 api.go:150: 收到message：5 的ACK
+[info]2023/06/14 23:22:02 api.go:150: 收到message：6 的ACK
+[info]2023/06/14 23:22:03 api.go:150: 收到message：7 的ACK
+[info]2023/06/14 23:22:03 api.go:150: 收到message：8 的ACK
+[info]2023/06/14 23:22:03 api.go:150: 收到message：9 的ACK
+[info]2023/06/14 23:22:03 api.go:150: 收到message：10 的ACK
+[info]2023/06/14 23:22:04 api.go:150: 收到message：11 的ACK
+[info]2023/06/25 22:45:47 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 22:45:48 api.go:150: 收到message：0 的ACK
+[info]2023/06/25 22:45:49 api.go:150: 收到message：1 的ACK
+[info]2023/06/25 22:45:49 api.go:150: 收到message：2 的ACK
+[info]2023/06/25 23:02:59 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 23:12:41 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 23:13:43 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 23:15:12 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 23:15:13 api.go:103: message.pb: 0 超时重传
+[info]2023/06/25 23:15:14 api.go:103: message.pb: 1 超时重传
+[info]2023/06/25 23:15:14 api.go:103: message.pb: 0 超时重传
+[info]2023/06/25 23:15:14 api.go:103: message.pb: 1 超时重传
+[info]2023/06/25 23:15:14 api.go:103: message.pb: 0 超时重传
+[info]2023/06/25 23:15:15 api.go:103: message.pb: 1 超时重传
+[info]2023/06/25 23:15:15 api.go:103: message.pb: 0 超时重传
+[info]2023/06/25 23:17:18 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/25 23:18:48 api.go:67: success login； ipList: [0.0.0.0:4025]

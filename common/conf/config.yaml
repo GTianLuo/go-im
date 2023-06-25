@@ -11,6 +11,8 @@ ipConfig:
     - http://localhost:2381
   dailTimeOut: 5
   leaseDDL: 5
+
+
 gateway:
   maxConnsNum: 1000000
   workPoolNum: 1023
@@ -27,6 +29,15 @@ gateway:
   dailTimeOut: 5
   leaseDDL: 5
   heartBeatTimeout: 3
+  mq:
+    xName: imSys.direct.msgRouter   # 交换机名字
+    # queueNamePrefix, 与该gateway绑定的消息队列的前缀
+    # 完整的gateway 名称需要拼接deviceId
+    # 该队列用来接收下游转发过来的消息，此gateway是这个queue的唯一消费者
+    queueNamePrefix: imSys.gateway.queue.
+    routingKey: imSys.messaging.queue
+
+
 
 mysql:
   db: mysql
@@ -46,11 +57,21 @@ mq:
   password: user
   ip: localhost
   host: 5672
+  xName: direct.msgRouter
   upMessage:
-    xName: direct.routeMsg
+    xName: imSys.direct.msgRouter
     privateMsg:
       queueName: private.queue
       bindingKey: msg.private
     groupMsg:
       queueName: group.queue
       bindingKey: msg.group
+
+
+
+messaging:
+  mqConsumerNum: 8 #cpu核心数决定,消费消息的协程数量
+  mq:
+    xName: imSys.direct.msgRouter
+    queueName: imSys.messaging.queue
+    routingKeyPrefix: imSys.gateway.queue.

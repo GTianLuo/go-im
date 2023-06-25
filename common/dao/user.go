@@ -5,6 +5,7 @@ import (
 	"go-im/common/conf/dbConf"
 	"go-im/common/model"
 	"gorm.io/gorm"
+	"sync"
 )
 
 type UserDao struct {
@@ -12,6 +13,7 @@ type UserDao struct {
 	cache *redis.Client
 }
 
+var userO sync.Once
 var userDao *UserDao
 
 func initUserDao() {
@@ -19,7 +21,7 @@ func initUserDao() {
 }
 
 func NewUserDao() *UserDao {
-	o.Do(initUserDao)
+	userO.Do(initUserDao)
 	return userDao
 }
 

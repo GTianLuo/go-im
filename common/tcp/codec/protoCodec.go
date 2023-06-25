@@ -3,7 +3,7 @@ package codec
 import (
 	"bytes"
 	"encoding/binary"
-	"go-im/common/proto/message"
+	"go-im/common/message"
 	"google.golang.org/protobuf/proto"
 	"io"
 )

@@ -12,7 +12,7 @@ import (
 
 type item struct {
 	Value    interface{}
-	Priority int64
+	Priority int64 //优先级，实现时间轮时将过期时间作为优先级
 	Index    int
 }
 
@@ -67,6 +67,7 @@ func (pq *priorityQueue) Pop() interface{} {
 	return item
 }
 
+// PeekAndShift 判断堆顶元素是否过期，如果过期从堆中删除元素
 func (pq *priorityQueue) PeekAndShift(max int64) (*item, int64) {
 	if pq.Len() == 0 {
 		return nil, 0
@@ -140,7 +141,7 @@ func (dq *DelayQueue) Poll(exitC chan struct{}, nowF func() int64) {
 
 		if item == nil {
 			if delta == 0 {
-				// 没有item
+				// dq中没有item
 				select {
 				case <-dq.wakeupC:
 					// 等待被唤醒
@@ -152,15 +153,12 @@ func (dq *DelayQueue) Poll(exitC chan struct{}, nowF func() int64) {
 				// At least one item is pending.
 				select {
 				case <-dq.wakeupC:
-					// A new item with an "earlier" expiration than the current "earliest" one is added.
+					// 一个比当前堆顶元素优先级更高的元素加入时，唤醒dq
 					continue
 				case <-time.After(time.Duration(delta) * time.Millisecond):
-					// The current "earliest" item expires.
-
-					// Reset the sleeping state since there's no need to receive from wakeupC.
+					// 堆顶元素过期
+					// 这里与offer操作并没有互斥，如果定时器到期和插入优先级更早的元素两个事件同时发生，所以需要如下操作
 					if atomic.SwapInt32(&dq.sleeping, 0) == 0 {
-						// A caller of Offer() is being blocked on sending to wakeupC,
-						// drain wakeupC to unblock the caller.
 						<-dq.wakeupC
 					}
 					continue

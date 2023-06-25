@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "./;cache";
+
+// protoc --go_out=pb/ pb/*.proto
+
+package cache;
+
+// 持久化存储的消息
+message PrivateMsg{
+  int64 timestamp = 1;
+  int64 MsgId = 2;
+  string From = 3;
+  string To = 4;
+  string content = 5;
+}

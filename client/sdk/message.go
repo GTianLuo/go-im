@@ -1,7 +1,7 @@
 package sdk
 
 import (
-	"go-im/common/proto/message"
+	"go-im/common/message"
 )
 
 func GetSystemMessage(msg string, reConn bool) *message.Cmd {

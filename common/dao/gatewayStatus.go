@@ -3,10 +3,12 @@ package dao
 import (
 	"github.com/go-redis/redis"
 	"go-im/common/conf/dbConf"
-	"strconv"
+	"sync"
 )
 
 var gatewayStatusDao *GatewayStatusDao
+
+var gatewayO sync.Once
 
 type GatewayStatusDao struct {
 	cache *redis.Client
@@ -19,18 +21,18 @@ func initGatewayStatusDao() {
 }
 
 func NewGatewayStatus() *GatewayStatusDao {
-	o.Do(initGatewayStatusDao)
+	gatewayO.Do(initGatewayStatusDao)
 	return gatewayStatusDao
 }
 
 // SaveConnStatus redis中保存gateway(user)的长连接状态
 func (dao *GatewayStatusDao) SaveConnStatus(deviceId int, account string) error {
-	return dao.cache.SAdd(GateWayConnsStatus+strconv.Itoa(deviceId), account).Err()
+	return dao.cache.SAdd(GateWayConnsStatus+account, deviceId).Err()
 }
 
 // DelConnStatus  redis中删除gateway(user)的长连接状态
 func (dao *GatewayStatusDao) DelConnStatus(deviceId int, account string) error {
-	return dao.cache.SRem(GateWayConnsStatus+strconv.Itoa(deviceId), account).Err()
+	return dao.cache.SRem(GateWayConnsStatus+account, deviceId).Err()
 }
 
 // GetGlobalMessageId 获取全局的message id

@@ -5,7 +5,7 @@ import (
 	"go-im/client/sdk"
 	"go-im/common/conf"
 	log "go-im/common/log"
-	"go-im/common/proto/message"
+	"go-im/common/message"
 	"google.golang.org/protobuf/proto"
 	"io/ioutil"
 

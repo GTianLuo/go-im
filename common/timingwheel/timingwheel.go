@@ -73,7 +73,6 @@ func (tw *TimingWheel) add(t *Timer) bool {
 		virtualID := t.expiration / tw.tick
 		b := tw.buckets[virtualID%tw.wheelSize]
 		b.Add(t)
-
 		// 该方法内部使用的CAS，当bucket过期时间改变时重新加入延时队列
 		// bucket过期时间改变只有两种情况：1. bucket未加入过延时队列  2. bucket被flush，过期时间被置为-1
 		if b.SetExpiration(virtualID * tw.tick) {

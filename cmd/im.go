@@ -34,6 +34,17 @@ func IM(cmd *cobra.Command, args []string) {
 
 }
 
-func initConfig() {
+type I interface {
+	//io.Closer
+	Close() error
+}
 
+type X struct {
+}
+
+func (x X) Close() error { //TODO implement me
+	panic("implement me")
+}
+
+func initConfig() {
 }

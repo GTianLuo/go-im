@@ -2,6 +2,7 @@ package serviceConf
 
 import (
 	"go-im/common/conf"
+	"strconv"
 	"time"
 )
 
@@ -52,4 +53,20 @@ func GetGateWayAuthAddr() string {
 
 func GetGateWayHeartbeatTimeout() time.Duration {
 	return conf.V.GetDuration("gateway.heartBeatTimeout") * time.Second
+}
+
+func GetGateWayMqAddr() string {
+	return conf.V.GetString("gateway.mq.addr")
+}
+
+func GetGateWayMqXName() string {
+	return conf.V.GetString("gateway.mq.xName")
+}
+
+func GetGatewayMqQueueName() string {
+	return conf.V.GetString("gateway.mq.queueNamePrefix") + strconv.Itoa(int(GetGateWayDeviceId()))
+}
+
+func GetGatewayMqRoutingKey() string {
+	return conf.V.GetString("gateway.mq.routingKey")
 }

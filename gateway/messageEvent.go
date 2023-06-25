@@ -1,7 +1,7 @@
 package gateway
 
 import (
-	"go-im/common/proto/message"
+	"go-im/common/message"
 )
 
 type MessageEvent struct {

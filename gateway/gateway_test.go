@@ -43,3 +43,15 @@ func TestChannel(t *testing.T) {
 		log.Info(222)
 	}
 }
+
+func TestIO(t *testing.T) {
+	pool, _ := ants.NewPool(10)
+	defer pool.Free()
+
+	for i := 0; i < 100; i++ {
+		taskID := i
+		pool.Submit(func() {
+			fmt.Println(taskID)
+		})
+	}
+}

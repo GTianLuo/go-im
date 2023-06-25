@@ -3,7 +3,7 @@ package sdk
 import (
 	"errors"
 	"go-im/common/log"
-	"go-im/common/proto/message"
+	"go-im/common/message"
 	"go-im/common/tcp/codec"
 	"google.golang.org/protobuf/proto"
 	"io"

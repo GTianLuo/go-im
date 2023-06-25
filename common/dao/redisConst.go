@@ -1,11 +1,8 @@
 package dao
 
 import (
-	"sync"
 	"time"
 )
-
-var o sync.Once
 
 const (
 	UserLoginInfo    = "imSys:user:token:"
@@ -13,5 +10,7 @@ const (
 
 	GateWayConnsStatus = "imSys:gateway:deviceId:"
 
-	MessageGlobalId = "imSys:message:id:"
+	MessageGlobalId = "imSys:message.pb:id:"
+
+	PrivateMessageInbox = "imSys:user:inbox:"
 )

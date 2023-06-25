@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go-im/common/conf/serviceConf"
 	"go-im/common/log"
-	"go-im/common/proto/message"
+	"go-im/common/message"
 	"go-im/common/result"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -100,7 +100,7 @@ func (c *Chat) waitAck(cmd *message.Cmd, content string) {
 			return
 		case <-time.After(time.Millisecond * 500):
 			// 超时重传
-			log.ClientInfof("message: %d 超时重传\n", cmd.MsgId)
+			log.ClientInfof("message.pb: %d 超时重传\n", cmd.MsgId)
 			select {
 			case <-c.conn.closed:
 				continue
@@ -113,7 +113,7 @@ func (c *Chat) waitAck(cmd *message.Cmd, content string) {
 	case <-ctx.Done():
 		return
 	case <-time.After(time.Second * 3):
-		log.ClientInfof("message: %d:%s 发送失败\n", cmd.MsgId, content)
+		log.ClientInfof("message.pb: %d:%s 发送失败\n", cmd.MsgId, content)
 
 		c.conn.recvChan <- GetSystemMessage("发送失败："+content, false)
 	}
@@ -124,7 +124,7 @@ func (chat *Chat) Close() {
 	chat.conn.close()
 }
 
-//Recv receive message
+//Recv receive message.pb
 func (chat *Chat) Recv() <-chan *message.Cmd {
 	return chat.conn.getRecvChan()
 }
