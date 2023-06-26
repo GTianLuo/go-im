@@ -47,6 +47,8 @@ func NewDBClient() *gorm.DB {
 func Migration() {
 	err := _db.Set("gorm:table_options", "charset=utf8mb4").AutoMigrate(
 	//&model.User{},
+	//&model.MsgSend{},
+	//&model.MsgReceive{},
 	)
 	if err != nil {
 		panic(fmt.Sprintf("dataBase create failed:%s", err.Error()))

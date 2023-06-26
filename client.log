@@ -75,3 +75,40 @@
 [info]2023/06/25 23:15:15 api.go:103: message.pb: 0 超时重传
 [info]2023/06/25 23:17:18 api.go:67: success login； ipList: [0.0.0.0:4025]
 [info]2023/06/25 23:18:48 api.go:67: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 20:18:52 api.go:68: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 20:18:53 api.go:152: 收到message：%!d(string=0) 的ACK
+[info]2023/06/26 20:18:55 api.go:152: 收到message：%!d(string=1) 的ACK
+[info]2023/06/26 20:19:51 net.go:103: Network disconnection
+[info]2023/06/26 20:20:18 api.go:68: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 20:20:19 api.go:152: 收到message：%!d(string=0) 的ACK
+[info]2023/06/26 20:21:07 net.go:103: Network disconnection
+[info]2023/06/26 20:55:32 api.go:68: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 20:55:34 api.go:152: 收到message：%!d(string=0) 的ACK
+[info]2023/06/26 21:04:55 api.go:68: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 21:04:57 api.go:152: 收到message：%!d(string=0) 的ACK
+[info]2023/06/26 21:13:36 api.go:152: 收到message：%!d(string=1) 的ACK
+[info]2023/06/26 21:14:49 api.go:152: 收到message：%!d(string=2) 的ACK
+[info]2023/06/26 21:15:31 api.go:152: 收到message：%!d(string=3) 的ACK
+[info]2023/06/26 21:17:01 api.go:152: 收到message：%!d(string=4) 的ACK
+[info]2023/06/26 21:17:38 api.go:152: 收到message：%!d(string=5) 的ACK
+[info]2023/06/26 21:21:38 api.go:68: success login； ipList: [0.0.0.0:4025]
+[info]2023/06/26 21:21:40 api.go:152: 收到message：%!d(string=0) 的ACK
+[info]2023/06/26 21:23:13 api.go:152: 收到message：%!d(string=1) 的ACK
+[info]2023/06/26 21:23:14 api.go:152: 收到message：%!d(string=2) 的ACK
+[info]2023/06/26 21:23:14 api.go:152: 收到message：%!d(string=3) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=4) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=5) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=6) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=7) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=8) 的ACK
+[info]2023/06/26 21:23:15 api.go:152: 收到message：%!d(string=9) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=10) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=11) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=12) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=13) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=14) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=15) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=16) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=17) 的ACK
+[info]2023/06/26 21:23:16 api.go:152: 收到message：%!d(string=18) 的ACK
+[info]2023/06/26 21:23:18 api.go:152: 收到message：%!d(string=19) 的ACK

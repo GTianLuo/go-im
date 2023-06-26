@@ -55,19 +55,19 @@ func (conn *Connection) Close() error {
 }
 
 // SaveConnStatus 保存连接状态
-func (conn *Connection) SaveConnStatus(deviceId int) error {
+func (conn *Connection) SaveConnStatus(deviceId string) error {
 	return dao.NewGatewayStatus().SaveConnStatus(deviceId, conn.Account)
 }
 
 // DelConnStatus 删除连接状态
-func (conn *Connection) DelConnStatus(deviceId int) error {
-	return dao.NewGatewayStatus().DelConnStatus(deviceId, conn.Account)
+func (conn *Connection) DelConnStatus(deviceId string) error {
+	return dao.NewGatewayStatus().DelConnStatus(conn.Account)
 }
 
 // CancelConn 关闭连接
 func (conn *Connection) CancelConn() {
 	conn.M.removeConn(conn.Fd)
-	if err := conn.DelConnStatus(int(conn.M.deviceId)); err != nil {
+	if err := conn.DelConnStatus(conn.M.deviceId); err != nil {
 		log.Error(err)
 	}
 	epoller := epoll.GetEpoller(conn.EpollFd)

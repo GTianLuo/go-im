@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"net"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -58,7 +59,7 @@ func (c *connect) login(serverAddrList []string, account string, token string, m
 		}
 		authReqCmd := &message.Cmd{
 			Type:    message.CmdType_AuthRequestCmd,
-			MsgId:   msgId,
+			MsgId:   strconv.FormatInt(msgId, 10),
 			From:    account,
 			Payload: reqBytes,
 		}

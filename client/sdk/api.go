@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,7 +74,7 @@ func (c *Chat) LoadBalanceIpList(account, password string) error {
 
 // SendPrivateText 发送私聊消息
 func (c *Chat) SendPrivateText(to string, t string) {
-	msg := &message.PrivateMsg{
+	msg := &message.ChatMsg{
 		Type: message.MsgType_TextMsg,
 		To:   to,
 		Data: []byte(t),
@@ -90,8 +91,9 @@ func (c *Chat) SendPrivateText(to string, t string) {
 // 等待Ack，负责超时重传
 func (c *Chat) waitAck(cmd *message.Cmd, content string) {
 	ctx, cancel := context.WithCancel(context.Background())
+	msgId, _ := strconv.ParseInt(cmd.MsgId, 10, 64)
 	c.mu.Lock()
-	c.msgAckMap[cmd.MsgId] = cancel
+	c.msgAckMap[msgId] = cancel
 	c.mu.Unlock()
 	for i := 1; i < serviceConf.GetClientMaxReSendNums(); i++ {
 		select {
@@ -129,8 +131,8 @@ func (chat *Chat) Recv() <-chan *message.Cmd {
 	return chat.conn.getRecvChan()
 }
 
-func (chat *Chat) NextMsgId() int64 {
-	return atomic.AddInt64(&chat.MsgId, 1)
+func (chat *Chat) NextMsgId() string {
+	return strconv.FormatInt(atomic.AddInt64(&chat.MsgId, 1), 10)
 }
 
 // ReConn 重连接
@@ -149,11 +151,12 @@ func (chat *Chat) ReConn() {
 func (chat *Chat) HandleAck(msg *message.Cmd) {
 	log.ClientInfof("收到message：%d 的ACK\n", msg.MsgId)
 	chat.mu.Lock()
-	if atomic.LoadInt64(&chat.MsgAckId) < msg.MsgId {
-		atomic.StoreInt64(&chat.MsgAckId, msg.MsgId)
+	msgId, _ := strconv.ParseInt(msg.MsgId, 10, 64)
+	if atomic.LoadInt64(&chat.MsgAckId) < msgId {
+		atomic.StoreInt64(&chat.MsgAckId, msgId)
 	}
 	//取消超时重传
-	chat.msgAckMap[msg.MsgId]()
-	delete(chat.msgAckMap, msg.MsgId)
+	chat.msgAckMap[msgId]()
+	delete(chat.msgAckMap, msgId)
 	chat.mu.Unlock()
 }

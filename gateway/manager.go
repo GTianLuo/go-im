@@ -20,6 +20,7 @@ import (
 	"net"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -29,7 +30,7 @@ import (
 type iManager interface {
 }
 type Manager struct {
-	deviceId   int32                      //设备编号
+	deviceId   string                     //设备编号
 	addr       string                     //服务地址
 	lis        *net.TCPListener           //tcp监听器
 	table      sync.Map                   //连接和id的映射
@@ -154,7 +155,8 @@ func (m *Manager) auth(codec codec.Codec) (string, int64, error) {
 	}
 	authResp.Status = 1
 	authRespCmd.Payload, _ = proto.Marshal(authRespCmd)
-	return authReqCmd.From, authReqCmd.MsgId, codec.WriteData(authRespCmd)
+	msgId, _ := strconv.ParseInt(authReqCmd.MsgId, 10, 64)
+	return authReqCmd.From, msgId, codec.WriteData(authRespCmd)
 }
 
 func (m *Manager) initEpoll() {
@@ -227,7 +229,7 @@ func (m *Manager) CheckAndAddTcpNum() bool {
 
 func (m *Manager) storeConn(conn *Connection) error {
 	// 保存登陆状态
-	if err := conn.SaveConnStatus(int(m.deviceId)); err != nil {
+	if err := conn.SaveConnStatus(m.deviceId); err != nil {
 		return err
 	}
 	atomic.AddInt32(&m.hasConnNum, 1)
@@ -371,9 +373,10 @@ func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
 		log.Error(err)
 		return
 	}
+	msgId, _ := strconv.ParseInt(e.cmd.MsgId, 10, 64)
 	//赋予消息时间
 	e.cmd.Timestamp = time.Now().Unix()
-	checkStatus := conn.CheckAndAdd(e.cmd.MsgId)
+	checkStatus := conn.CheckAndAdd(msgId)
 	switch checkStatus {
 	case NoHandle:
 		return
@@ -395,7 +398,7 @@ func (m *Manager) handlePrivateChatMessage(e *MessageEvent) {
 }
 
 // AckMessage ack确认消息
-func (m *Manager) AckMessage(connId int, msgId int64) {
+func (m *Manager) AckMessage(connId int, msgId string) {
 	cmd := &message.Cmd{Type: message.CmdType_MsgAckCmd, MsgId: msgId}
 	m.send <- NewMessageEvent(connId, cmd)
 }

@@ -1,14 +1,19 @@
 package mq
 
-import amqp "github.com/rabbitmq/amqp091-go"
+import (
+	"github.com/panjf2000/ants/v2"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"go-im/common/log"
+)
 
 type MQConsumer struct {
 	ch        *amqp.Channel
 	queueName string //要消费的队列名
+	workPool  *ants.Pool
 }
 
-func NewConsumer(ch *amqp.Channel, queueName string) (*MQConsumer, error) {
-	s := &MQConsumer{ch: ch, queueName: queueName}
+func NewConsumer(ch *amqp.Channel, queueName string, workPool *ants.Pool) (*MQConsumer, error) {
+	s := &MQConsumer{ch: ch, queueName: queueName, workPool: workPool}
 	return s, nil
 }
 
@@ -26,9 +31,21 @@ func (s *MQConsumer) ConsumeMsg(done chan struct{}, handleMsg func(msg []byte) b
 		case <-done:
 			return
 		case msg := <-consumeCh:
-			if ok := handleMsg(msg.Body); ok {
-				if err := msg.Ack(false); err != nil {
-					panic(err)
+			for true {
+				msgBody := msg.Body
+
+				if err := s.workPool.Submit(
+					func() {
+						var errAck error
+						if handleMsg(msgBody) {
+							errAck = msg.Ack(false)
+						}
+						if errAck != nil {
+							log.Error(errAck)
+						}
+					},
+				); err == nil {
+					break
 				}
 			}
 		}

@@ -20,6 +20,21 @@ func redisConn() *redis.Client {
 }
 
 func Test1(t *testing.T) {
+	account := "2985496686"
 	conn := redisConn()
-	conn.HSet("test", "t1", "hello world")
+	result, err := conn.Exists(GateWayConnsStatus + account).Result()
+	if err != nil {
+		panic(err)
+	}
+	if result == 0 {
+		// 用户不在线
+		fmt.Println("用户不在线")
+	}
+
+	cmd := conn.Get(GateWayConnsStatus + account)
+	if err := cmd.Err(); err != nil {
+		panic(err)
+	}
+	rs := cmd.String()
+	fmt.Printf("用户在线: %s", rs)
 }

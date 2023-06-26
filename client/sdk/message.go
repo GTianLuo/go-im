@@ -11,9 +11,9 @@ func GetSystemMessage(msg string, reConn bool) *message.Cmd {
 		From:    "用户",
 	}
 	if reConn {
-		cmd.MsgId = 1
+		cmd.MsgId = "1"
 	} else {
-		cmd.MsgId = 0
+		cmd.MsgId = "0"
 	}
 	return nil
 }

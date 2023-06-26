@@ -8,6 +8,7 @@ import (
 	"go-im/common/message"
 	"google.golang.org/protobuf/proto"
 	"io/ioutil"
+	"strconv"
 
 	"math/rand"
 	"time"
@@ -69,7 +70,7 @@ func doRecv(g *gocui.Gui) {
 	for cmd := range recvChannel {
 		switch cmd.Type {
 		case message.CmdType_PrivateMsgCmd:
-			msg := &message.PrivateMsg{}
+			msg := &message.ChatMsg{}
 			if err := proto.Unmarshal(cmd.Payload, msg); err != nil {
 				log.ClientError(err)
 				continue
@@ -77,7 +78,8 @@ func doRecv(g *gocui.Gui) {
 			viewPrint(g, cmd.From, string(msg.Data), false)
 		case message.CmdType_SystemCmd:
 			b := cmd.MsgId
-			if b == 1 {
+			bI, _ := strconv.Atoi(b)
+			if bI == 1 {
 				go chat.ReConn()
 			}
 			viewPrint(g, cmd.From, string(cmd.Payload), false)
@@ -103,7 +105,7 @@ func doSay(g *gocui.Gui, cv *gocui.View) {
 		if p != nil {
 			// 先把自己说的话显示到消息流中
 			viewPrint(g, "me", string(p), false)
-			chat.SendPrivateText("2112", string(p))
+			chat.SendPrivateText("2985496686", string(p))
 		}
 		v.Autoscroll = true
 	}

@@ -23,29 +23,22 @@ enum MsgType{ //枚举消息类型
   PictureMsg = 1;
 }
 
-
 // 顶层cmd pb结构
 message Cmd{
   CmdType Type = 1;
-  int64  MsgId = 2; //该字段在上下游有不同的含义，作上游消息的时候MsgId是会话内的唯一Id，作下游消息的时候是全局唯一id
+  string  MsgId = 2; //该字段在上下游有不同的含义，作上游消息的时候MsgId是会话内的唯一Id，作下游消息的时候是全局唯一id
   string  From = 3;
   int64 timestamp= 4;
   bytes Payload = 5;
 }
 
-//单聊
-message PrivateMsg{
+// 聊天
+message ChatMsg{
   MsgType Type = 1;
   string To = 3;
   bytes Data = 4;
 }
 
-//群聊
-message GroupMsg{
-  MsgType Type = 1;
-  string To = 2;
-  bytes Data = 3;
-}
 
 //鉴权请求
 message AuthRequest {
